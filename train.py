@@ -94,7 +94,7 @@ def train(data_dir,
             total_loss += loss.mean().item()
             pbar.set_description('train loss: %lf' %
                                  (total_loss /
-                                  (batch_idx + 1))
+                                  (batch_idx + 1)))
             if batch_idx % accumulate == accumulate - 1 or \
                     batch_idx + 1 == train_loader.iter_times:
                 optimizer.step()
