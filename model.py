@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+import torch.nn.functional as F
 
 class SELayer(nn.Module):
     def __init__(self, filters):
@@ -15,7 +15,7 @@ class SELayer(nn.Module):
                           padding=0,
                           bias=False),
                 # nn.Dropout(0.5),
-                # nn.BatchNorm1d(filters // 16),
+                nn.BatchNorm2d(filters // 16),
                 nn.LeakyReLU(0.1, inplace=True),
                 nn.Conv2d(filters // 16,
                           filters,
@@ -23,7 +23,7 @@ class SELayer(nn.Module):
                           padding=0,
                           bias=False),
                 # nn.Dropout(0.5),
-                # nn.BatchNorm1d(filters),
+                nn.BatchNorm2d(filters),
                 nn.Sigmoid()
             ])
 
@@ -93,6 +93,7 @@ class SENet(nn.Module):
         x = self.conv1(x)
         x = self.res_blocks(x)
         x = self.fc(x).view(x.shape[0], -1)
+        x = F.softmax(x, 1)
         return x
 
 

@@ -8,7 +8,9 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 # from test import test
+from loss import FocalBCELoss
 from torchsummary import summary
+
 print(device)
 
 
@@ -59,7 +61,7 @@ def train(data_dir,
         best_loss = state_dict['loss']
         epoch = state_dict['epoch']
         model.load_state_dict(state_dict['model'])
-    criterion = nn.CrossEntropyLoss(reduction='none')
+    criterion = FocalBCELoss()
     # optimizer = optim.Adam([{
     #     'params': model.backbone.parameters(),
     #     'lr': 1e-2 * lr
@@ -70,9 +72,7 @@ def train(data_dir,
     #    lr=lr)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     # create dataset
-    OHEM_TRIG = False
-    he_inputs = []
-    he_targets = []
+
     while epoch < epochs:
         # train
         model.train()
@@ -80,34 +80,20 @@ def train(data_dir,
         pbar = tqdm(range(train_loader.iter_times))
         optimizer.zero_grad()
         for batch_idx in pbar:
-            # OHEM
-            if OHEM_TRIG:
-                outputs = model(he_inputs)
-                loss = criterion(outputs, he_targets)
-                loss.sum().backward()
-                he_inputs = []
-                he_targets = []
-                OHEM_TRIG = False
+
             inputs, targets = train_loader.next()
             inputs = torch.FloatTensor(inputs).to(device)
-            targets = torch.LongTensor(targets).to(device)
+            targets = torch.FloatTensor(targets).to(device)
             outputs = model(inputs)
             loss = criterion(outputs, targets)
-            # he_inputs.append(torch.unsqueeze(inputs[loss.max(0)[1]], 0))
-            # he_targets.append(torch.unsqueeze(targets[loss.max(0)[1]], 0))
-            he_inputs.append(inputs[loss > loss.median()])
-            he_targets.append(targets[loss > loss.median()])
-            loss.sum().backward()
-            total_loss += loss.mean().item()
+            loss.backward()
+            total_loss += loss.item()
             pbar.set_description('train loss: %lf' % (total_loss /
                                                       (batch_idx + 1)))
             if batch_idx % accumulate == accumulate - 1 or \
                     batch_idx + 1 == train_loader.iter_times:
                 optimizer.step()
                 optimizer.zero_grad()
-                he_inputs = torch.cat(he_inputs)
-                he_targets = torch.cat(he_targets)
-                OHEM_TRIG = True
         # validate
         model.eval()
         val_loss = 0
@@ -124,11 +110,12 @@ def train(data_dir,
             for batch_idx in pbar:
                 inputs, targets = val_loader.next()
                 inputs = torch.FloatTensor(inputs).to(device)
-                targets = torch.LongTensor(targets).to(device)
+                targets = torch.FloatTensor(targets).to(device)
                 outputs = model(inputs)
                 loss = criterion(outputs, targets)
-                val_loss += loss.mean().item()
+                val_loss += loss.item()
                 predicted = outputs.max(1)[1]
+                targets = targets.max(1)[1]
                 eq = predicted.eq(targets)
                 total += targets.size(0)
                 correct += eq.sum().item()
