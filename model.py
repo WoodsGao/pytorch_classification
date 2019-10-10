@@ -10,19 +10,27 @@ class SELayer(nn.Module):
         self.fc = nn.Sequential(
             *[
                 # bias???
-                nn.Linear(filters, filters // 16, bias=False),
-                nn.Dropout(0.5),
-                nn.BatchNorm1d(filters // 16),
+                nn.Conv2d(filters,
+                          filters // 16,
+                          kernel_size=1,
+                          padding=0,
+                          bias=False),
+                # nn.Dropout(0.5),
+                # nn.BatchNorm1d(filters // 16),
                 nn.LeakyReLU(),
-                nn.Linear(filters // 16, filters, bias=False),
-                nn.Dropout(0.5),
-                nn.BatchNorm1d(filters),
+                nn.Conv2d(filters // 16,
+                          filters,
+                          kernel_size=1,
+                          padding=0,
+                          bias=False),
+                # nn.Dropout(0.5),
+                # nn.BatchNorm1d(filters),
                 nn.Sigmoid()
             ])
 
     def forward(self, x):
-        weights = self.gap(x).view(x.shape[0], -1)
-        weights = self.fc(weights).view(x.shape[0], -1, 1, 1)
+        weights = self.gap(x)
+        weights = self.fc(weights)
         return x * weights
 
 
@@ -49,11 +57,12 @@ class ResUnit(nn.Module):
         self.se = SELayer(filters)
 
     def forward(self, x):
-        tmp = self.dbl1(x)
-        tmp = self.dbl2(tmp)
-        tmp = self.se(tmp)
-        tmp += x
-        return tmp
+        origin = x.clone()
+        x = self.dbl1(x)
+        x = self.dbl2(x)
+        x = self.se(x)
+        x += origin
+        return x
 
 
 class SENet(nn.Module):

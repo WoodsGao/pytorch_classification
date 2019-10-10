@@ -45,20 +45,18 @@ def train(data_dir,
             augments.NHWC2NCHW(),
         ],
     )
-    classes = os.listdir(train_dir)
-    num_classes = len(classes)
     best_acc = 0
     best_loss = 1000
     epoch = 0
-    model = SENet(3,
-                  len(train_loader.classes))
+    num_classes = len(train_loader.classes)
+    model = SENet(3, num_classes)
     model = model.to(device)
     if resume:
-        last = torch.load(resume_path, map_location=device)
-        best_acc = last['acc']
-        best_loss = last['loss']
-        epoch = last['epoch']
-        model.load_state_dict(last['model'])
+        state_dict = torch.load(resume_path, map_location=device)
+        best_acc = state_dict['acc']
+        best_loss = state_dict['loss']
+        epoch = state_dict['epoch']
+        model.load_state_dict(state_dict['model'])
     criterion = nn.CrossEntropyLoss(reduction='none')
     # optimizer = optim.Adam([{
     #     'params': model.backbone.parameters(),
