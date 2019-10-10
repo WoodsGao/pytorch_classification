@@ -78,11 +78,12 @@ class SENet(nn.Module):
                                7,
                                padding=3,
                                bias=False)
-        self.res_list = []
+        res_blocks = []
         for fi, f in enumerate(filters):
             layers = [DBL(last_features, f, 3, 2)] + [ResUnit(f)] * res_n[fi]
-            self.res_list.append(nn.Sequential(*layers))
+            res_blocks.append(nn.Sequential(*layers))
             last_features = f
+        self.res_blocks = nn.Sequential(*res_blocks)
         self.fc = nn.Sequential(
             nn.Dropout(0.5), nn.BatchNorm2d(filters[-1]), nn.LeakyReLU(),
             nn.Conv2d(filters[-1], out_features, 7, padding=3),
@@ -90,8 +91,7 @@ class SENet(nn.Module):
 
     def forward(self, x):
         x = self.conv1(x)
-        for res in self.res_list:
-            x = res(x)
+        x = self.res_blocks(x)
         x = self.fc(x).view(x.shape[0], -1)
         return x
 

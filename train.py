@@ -9,6 +9,7 @@ import torch.optim as optim
 from tqdm import tqdm
 import numpy as np
 # from test import test
+# from torchsummary import summary
 
 
 def train(data_dir,
@@ -50,6 +51,7 @@ def train(data_dir,
     epoch = 0
     num_classes = len(train_loader.classes)
     model = SENet(3, num_classes)
+    # summary(model, (3, 224, 224))
     model = model.to(device)
     if resume:
         state_dict = torch.load(resume_path, map_location=device)
