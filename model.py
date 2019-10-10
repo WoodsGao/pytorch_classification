@@ -84,7 +84,7 @@ class SENet(nn.Module):
             last_features = f
         self.res_blocks = nn.Sequential(*res_blocks)
         self.fc = nn.Sequential(
-            nn.Dropout(0.5), nn.BatchNorm2d(filters[-1]),
+            nn.BatchNorm2d(filters[-1]),
             nn.LeakyReLU(0.1, inplace=True),
             nn.Conv2d(filters[-1], out_features, 7, padding=3),
             nn.AdaptiveAvgPool2d(1), nn.Sigmoid())

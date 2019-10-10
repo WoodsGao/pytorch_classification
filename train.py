@@ -3,12 +3,10 @@ from cv_utils import augments
 import torch
 from model import SENet
 import os
-from utils import device
-import torch.nn as nn
+from utils import device, FocalBCELoss
 import torch.optim as optim
 from tqdm import tqdm
 # from test import test
-from loss import FocalBCELoss
 from torchsummary import summary
 
 print(device)
@@ -72,6 +70,9 @@ def train(data_dir,
     #    lr=lr)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     # create dataset
+    against_inputs = []
+    against_targets = []
+    against_trig = False
 
     while epoch < epochs:
         # train
@@ -80,20 +81,34 @@ def train(data_dir,
         pbar = tqdm(range(train_loader.iter_times))
         optimizer.zero_grad()
         for batch_idx in pbar:
-
+            # against examples training
+            if against_trig and len(against_inputs):
+                against_inputs = torch.cat(against_inputs)
+                against_targets = torch.cat(against_targets)
+                outputs = model(against_inputs)
+                loss = criterion(outputs, against_targets)
+                loss.mean().backward()
+                against_trig = False
+                against_inputs = []
+                against_targets = []
+                optimizer.step()
+                optimizer.zero_grad()
             inputs, targets = train_loader.next()
             inputs = torch.FloatTensor(inputs).to(device)
             targets = torch.FloatTensor(targets).to(device)
             outputs = model(inputs)
             loss = criterion(outputs, targets)
-            loss.backward()
-            total_loss += loss.item()
+            against_inputs.append(inputs[loss > loss.mean()])
+            against_targets.append(targets[loss > loss.mean()])
+            loss.mean().backward()
+            total_loss += loss.mean().item()
             pbar.set_description('train loss: %lf' % (total_loss /
                                                       (batch_idx + 1)))
             if batch_idx % accumulate == accumulate - 1 or \
                     batch_idx + 1 == train_loader.iter_times:
                 optimizer.step()
                 optimizer.zero_grad()
+                against_trig = True
         # validate
         model.eval()
         val_loss = 0
@@ -113,7 +128,7 @@ def train(data_dir,
                 targets = torch.FloatTensor(targets).to(device)
                 outputs = model(inputs)
                 loss = criterion(outputs, targets)
-                val_loss += loss.item()
+                val_loss += loss.mean().item()
                 predicted = outputs.max(1)[1]
                 targets = targets.max(1)[1]
                 eq = predicted.eq(targets)
@@ -164,13 +179,13 @@ def train(data_dir,
 
 if __name__ == "__main__":
     augments_list = [
-        augments.PerspectiveProject(0.4, 0.4),
-        augments.HSV_H(0.1, 0.4),
-        augments.HSV_S(0.1, 0.4),
-        augments.HSV_V(0.1, 0.4),
-        augments.Rotate(1, 0.4),
+        augments.PerspectiveProject(0.1, 0.3),
+        augments.HSV_H(0.1, 0.3),
+        augments.HSV_S(0.1, 0.3),
+        augments.HSV_V(0.1, 0.3),
+        augments.Rotate(1, 0.3),
         augments.Blur(0.1, 0.3),
-        augments.Noise(0.05, 0.3),
+        augments.Noise(0.1, 0.3),
     ]
     data_dir = 'data/road_mark'
-    train(data_dir, img_size=64, batch_size=64, augments_list=augments_list)
+    train(data_dir, img_size=224, batch_size=64, augments_list=augments_list)
