@@ -10,4 +10,4 @@ class FocalBCELoss(nn.Module):
 
     def forward(self, y_pred, y_true):
         loss = -y_true*self.alpha*torch.pow((1-y_pred), self.gamma)*torch.log(y_pred)-(1-y_true)*(1-self.alpha)*torch.pow(y_pred, self.gamma)*torch.log(1-y_pred)
-        return loss.mean(1).sum()
+        return loss.sum()

@@ -5,10 +5,10 @@ __pycache__/
 
 # C extensions
 *.so
-
+*.pth
 data/
 .vscode/
-weights/
+weights/*
 
 # Distribution / packaging
 .Python
