@@ -3,13 +3,13 @@ from cv_utils import augments
 import torch
 from model import SENet
 import os
-from torch_utils import device
+from utils import device
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
-import numpy as np
 # from test import test
-# from torchsummary import summary
+from torchsummary import summary
+print(device)
 
 
 def train(data_dir,
@@ -51,7 +51,7 @@ def train(data_dir,
     epoch = 0
     num_classes = len(train_loader.classes)
     model = SENet(3, num_classes)
-    # summary(model, (3, 224, 224))
+    summary(model, (3, img_size, img_size))
     model = model.to(device)
     if resume:
         state_dict = torch.load(resume_path, map_location=device)
@@ -186,4 +186,4 @@ if __name__ == "__main__":
         augments.Noise(0.05, 0.3),
     ]
     data_dir = 'data/road_mark'
-    train(data_dir, img_size=64, augments_list=augments_list)
+    train(data_dir, img_size=64, batch_size=64, augments_list=augments_list)
