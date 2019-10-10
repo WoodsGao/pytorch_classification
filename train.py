@@ -70,8 +70,7 @@ def train(data_dir,
     #    lr=lr)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     # create dataset
-    against_inputs = []
-    against_targets = []
+    against_examples = []
     against_trig = False
 
     while epoch < epochs:
@@ -82,15 +81,17 @@ def train(data_dir,
         optimizer.zero_grad()
         for batch_idx in pbar:
             # against examples training
-            if against_trig and len(against_inputs):
-                against_inputs = torch.cat(against_inputs)
-                against_targets = torch.cat(against_targets)
+            if against_trig and len(against_examples):
+                against_inputs = torch.cat([e[1] for e in against_examples])
+                against_targets = torch.cat([e[2] for e in against_examples])
                 outputs = model(against_inputs)
                 loss = criterion(outputs, against_targets)
                 loss.mean().backward()
                 against_trig = False
-                against_inputs = []
-                against_targets = []
+                against_examples = [[
+                    loss[l], against_inputs[l].unsqueeze(0),
+                    against_targets[l].unsqueeze(0)
+                ] for l in range(len(loss))]
                 optimizer.step()
                 optimizer.zero_grad()
             inputs, targets = train_loader.next()
@@ -98,8 +99,11 @@ def train(data_dir,
             targets = torch.FloatTensor(targets).to(device)
             outputs = model(inputs)
             loss = criterion(outputs, targets)
-            against_inputs.append(inputs[loss > loss.mean()])
-            against_targets.append(targets[loss > loss.mean()])
+            against_examples = [[
+                loss[l], inputs[l].unsqueeze(0), targets[l].unsqueeze(0)
+            ] for l in range(len(loss))]
+            against_examples.sort(reverse=True)
+            against_examples = against_examples[:batch_size]
             loss.mean().backward()
             total_loss += loss.mean().item()
             pbar.set_description('train loss: %lf' % (total_loss /
