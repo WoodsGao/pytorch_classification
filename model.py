@@ -87,13 +87,12 @@ class SENet(nn.Module):
             nn.Dropout(0.5), nn.BatchNorm2d(filters[-1]),
             nn.LeakyReLU(0.1, inplace=True),
             nn.Conv2d(filters[-1], out_features, 7, padding=3),
-            nn.AdaptiveAvgPool2d(1))
+            nn.AdaptiveAvgPool2d(1), nn.Sigmoid())
 
     def forward(self, x):
         x = self.conv1(x)
         x = self.res_blocks(x)
         x = self.fc(x).view(x.shape[0], -1)
-        x = F.softmax(x, 1)
         return x
 
 
