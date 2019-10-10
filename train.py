@@ -188,4 +188,4 @@ if __name__ == "__main__":
         augments.Noise(0.1, 0.3),
     ]
     data_dir = 'data/road_mark'
-    train(data_dir, img_size=224, batch_size=64, augments_list=augments_list)
+    train(data_dir, img_size=64, batch_size=64, augments_list=augments_list)
