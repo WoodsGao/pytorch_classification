@@ -88,20 +88,22 @@ def train(data_dir,
                 loss = criterion(outputs, against_targets)
                 loss.mean().backward()
                 against_trig = False
+                optimizer.step()
+                optimizer.zero_grad()
+                outputs = model(against_inputs)
+                loss = criterion(outputs, against_targets)
                 against_examples = [[
                     loss[l], against_inputs[l].unsqueeze(0),
                     against_targets[l].unsqueeze(0)
                 ] for l in range(len(loss))]
-                optimizer.step()
                 optimizer.zero_grad()
             inputs, targets = train_loader.next()
             inputs = torch.FloatTensor(inputs).to(device)
             targets = torch.FloatTensor(targets).to(device)
             outputs = model(inputs)
             loss = criterion(outputs, targets)
-            against_examples = [[
-                loss[l], inputs[l].unsqueeze(0), targets[l].unsqueeze(0)
-            ] for l in range(len(loss))]
+            against_examples += [[loss[ei], e[1:]]
+                                 for ei, e in enumerate(against_examples)]
             against_examples.sort(reverse=True)
             against_examples = against_examples[:batch_size]
             loss.mean().backward()
