@@ -51,8 +51,8 @@ def train(data_dir,
     epoch = 0
     num_classes = len(train_loader.classes)
     model = SENet(3, num_classes)
-    summary(model, (3, img_size, img_size))
     model = model.to(device)
+    summary(model, (3, img_size, img_size))
     if resume:
         state_dict = torch.load(resume_path, map_location=device)
         best_acc = state_dict['acc']
