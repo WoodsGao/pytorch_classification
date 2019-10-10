@@ -85,16 +85,15 @@ def train(data_dir,
             outputs = model(inputs)
             loss = criterion(outputs, targets)
             against_examples += [[
-                loss[l], inputs[l].unsqueeze(0), targets[l].unsqueeze(0)
+                loss[l].item(), inputs[l].unsqueeze(0), targets[l].unsqueeze(0)
             ] for l in range(len(loss))]
             against_examples.sort(reverse=True)
-
             against_examples = against_examples[:batch_size]
+
             loss.mean().backward()
             total_loss += loss.mean().item()
-            pbar.set_description('train loss: %lf' %
-                                 (total_loss /
-                                  (batch_idx + 1)))
+            pbar.set_description('train loss: %lf' % (total_loss /
+                                                      (batch_idx + 1)))
             if batch_idx % accumulate == accumulate - 1 or \
                     batch_idx + 1 == train_loader.iter_times:
                 optimizer.step()
@@ -113,7 +112,7 @@ def train(data_dir,
                     loss = criterion(outputs, against_targets)
 
                     against_examples = [
-                        [loss[ei]] + e[1:]
+                        [loss[ei].item()] + e[1:]
                         for ei, e in enumerate(against_examples)
                     ]
                     optimizer.zero_grad()
