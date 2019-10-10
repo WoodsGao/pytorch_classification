@@ -87,8 +87,12 @@ def train(data_dir,
             against_examples += [[
                 loss[l].item(), inputs[l].unsqueeze(0), targets[l].unsqueeze(0)
             ] for l in range(len(loss))]
-            against_examples.sort(reverse=True)
-            against_examples = against_examples[:batch_size]
+            loss_list = [e[0] for e in against_examples]
+            loss_list.sort(reverse=True)
+            loss_thres = loss_list[min(batch_size, len(loss_list)) - 1]
+            against_examples = [
+                e for e in against_examples if e[0] > loss_thres
+            ]
 
             loss.mean().backward()
             total_loss += loss.mean().item()
