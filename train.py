@@ -7,7 +7,7 @@ from utils import device, FocalBCELoss
 import torch.optim as optim
 from tqdm import tqdm
 # from test import test
-from torchsummary import summary
+# from torchsummary import summary
 
 print(device)
 
@@ -35,6 +35,7 @@ def train(data_dir,
             augments.Normalize(),
             augments.NHWC2NCHW(),
         ],
+        # balance=True,
     )
     val_loader = ClassifyDataloader(
         val_dir,
@@ -45,6 +46,7 @@ def train(data_dir,
             augments.Normalize(),
             augments.NHWC2NCHW(),
         ],
+        # balance=True,
     )
     best_acc = 0
     best_loss = 1000
@@ -52,14 +54,14 @@ def train(data_dir,
     num_classes = len(train_loader.classes)
     model = SENet(3, num_classes)
     model = model.to(device)
-    summary(model, (3, img_size, img_size))
+    # summary(model, (3, img_size, img_size))
     if resume:
         state_dict = torch.load(resume_path, map_location=device)
         best_acc = state_dict['acc']
         best_loss = state_dict['loss']
         epoch = state_dict['epoch']
         model.load_state_dict(state_dict['model'])
-    criterion = FocalBCELoss()
+    criterion = FocalBCELoss(alpha=0.25, gamma=2)
     # optimizer = optim.Adam([{
     #     'params': model.backbone.parameters(),
     #     'lr': 1e-2 * lr
@@ -71,12 +73,11 @@ def train(data_dir,
     optimizer = optim.Adam(model.parameters(), lr=lr)
     # create dataset
     against_examples = []
-
     while epoch < epochs:
         # train
         model.train()
         total_loss = 0
-        pbar = tqdm(range(train_loader.iter_times))
+        pbar = tqdm(range(1, train_loader.iter_times + 1))
         optimizer.zero_grad()
         for batch_idx in pbar:
             inputs, targets = train_loader.next()
@@ -85,41 +86,40 @@ def train(data_dir,
             outputs = model(inputs)
             loss = criterion(outputs, targets)
             against_examples += [[
-                loss[l].item(), inputs[l].unsqueeze(0), targets[l].unsqueeze(0)
-            ] for l in range(len(loss))]
-            loss_list = [e[0] for e in against_examples]
-            loss_list.sort(reverse=True)
-            loss_thres = loss_list[min(batch_size, len(loss_list)) - 1]
-            against_examples = [
-                e for e in against_examples if e[0] > loss_thres
-            ]
+                inputs[li].unsqueeze(0), targets[li].unsqueeze(0)
+            ] for li, l in enumerate(loss) if l > loss.mean()]
 
             loss.mean().backward()
             total_loss += loss.mean().item()
             pbar.set_description('train loss: %lf' % (total_loss /
-                                                      (batch_idx + 1)))
-            if batch_idx % accumulate == accumulate - 1 or \
-                    batch_idx + 1 == train_loader.iter_times:
+                                                      (batch_idx)))
+            if batch_idx % accumulate == 0 or \
+                    batch_idx == train_loader.iter_times:
                 optimizer.step()
                 optimizer.zero_grad()
                 # against examples training
-                if len(against_examples):
-                    against_inputs = torch.cat(
-                        [e[1] for e in against_examples])
-                    against_targets = torch.cat(
-                        [e[2] for e in against_examples])
-                    outputs = model(against_inputs)
-                    loss = criterion(outputs, against_targets)
-                    loss.mean().backward()
-                    optimizer.step()
-                    outputs = model(against_inputs)
-                    loss = criterion(outputs, against_targets)
-
-                    against_examples = [
-                        [loss[ei].item()] + e[1:]
-                        for ei, e in enumerate(against_examples)
-                    ]
-                    optimizer.zero_grad()
+                if len(against_examples) > 1:
+                    against_batches = (len(against_examples) - 1) // batch_size
+                    for b in range(1, against_batches + 1):
+                        against_inputs = torch.cat([
+                            e[0]
+                            for e in against_examples[(b - 1) * batch_size:b *
+                                                      batch_size]
+                        ])
+                        if against_inputs.size(0) < 2:
+                            continue
+                        against_targets = torch.cat([
+                            e[1]
+                            for e in against_examples[(b - 1) * batch_size:b *
+                                                      batch_size]
+                        ])
+                        outputs = model(against_inputs)
+                        loss = criterion(outputs, against_targets)
+                        loss.mean().backward()
+                        if b % accumulate == 0 or b == against_batches:
+                            optimizer.step()
+                            optimizer.zero_grad()
+                    against_examples = []
         # validate
         model.eval()
         val_loss = 0
@@ -131,8 +131,7 @@ def train(data_dir,
         tn = torch.zeros(num_classes)
         fn = torch.zeros(num_classes)
         with torch.no_grad():
-            pbar = tqdm(range(val_loader.iter_times))
-
+            pbar = tqdm(range(1, val_loader.iter_times + 1))
             for batch_idx in pbar:
                 inputs, targets = val_loader.next()
                 inputs = torch.FloatTensor(inputs).to(device)
@@ -146,7 +145,6 @@ def train(data_dir,
                 total += targets.size(0)
                 correct += eq.sum().item()
                 acc = 100. * correct / total
-                loss = val_loss / (batch_idx + 1)
 
                 for c_i, c in enumerate(val_loader.classes):
                     indices = targets.eq(c_i).nonzero()
@@ -159,25 +157,26 @@ def train(data_dir,
                     fp[c_i] += predicted.eq(c_i).sum().item() - \
                         eq[indices].sum().item()
 
-                pbar.set_description('loss: %10lf, acc: %10lf' % (loss, acc))
+                pbar.set_description('loss: %10lf, acc: %10lf' %
+                                     (val_loss / batch_idx, acc))
 
         for c_i, c in enumerate(val_loader.classes):
             print('cls: %10s, targets: %10d, pre: %10lf, rec: %10lf' %
                   (c, total_c[c_i], tp[c_i] / (tp[c_i] + fp[c_i]), tp[c_i] /
                    (tp[c_i] + fn[c_i])))
-
+        val_loss /= val_loader.iter_times
         # Save checkpoint.
         state_dict = {
             'model': model.state_dict(),
             'acc': acc,
-            'loss': loss,
+            'loss': val_loss,
             'epoch': epoch
         }
         torch.save(state_dict, 'weights/last.pth')
-        if loss < best_loss:
+        if val_loss < best_loss:
             print('\nSaving..')
             torch.save(state_dict, 'weights/best_loss.pth')
-            best_loss = loss
+            best_loss = val_loss
         elif acc > best_acc:
             print('\nSaving..')
             torch.save(state_dict, 'weights/best_acc.pth')
@@ -190,13 +189,17 @@ def train(data_dir,
 
 if __name__ == "__main__":
     augments_list = [
-        augments.PerspectiveProject(0.1, 0.3),
-        augments.HSV_H(0.1, 0.3),
-        augments.HSV_S(0.1, 0.3),
-        augments.HSV_V(0.1, 0.3),
-        augments.Rotate(1, 0.3),
-        augments.Blur(0.1, 0.3),
-        augments.Noise(0.1, 0.3),
+        augments.PerspectiveProject(0.3, 0.1),
+        augments.HSV_H(0.3, 0.1),
+        augments.HSV_S(0.3, 0.1),
+        augments.HSV_V(0.3, 0.1),
+        augments.Rotate(1, 0.1),
+        augments.Blur(0.3, 0.1),
+        augments.Noise(0.3, 0.1),
     ]
     data_dir = 'data/road_mark'
-    train(data_dir, img_size=64, batch_size=64, augments_list=augments_list)
+    train(data_dir,
+          img_size=32,
+          batch_size=32,
+          accumulate=4,
+          augments_list=augments_list)

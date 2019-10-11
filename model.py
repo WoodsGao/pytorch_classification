@@ -14,16 +14,16 @@ class SELayer(nn.Module):
                           kernel_size=1,
                           padding=0,
                           bias=False),
-                # nn.Dropout(0.5),
-                nn.BatchNorm2d(filters // 16),
-                nn.LeakyReLU(0.1, inplace=True),
+                nn.Dropout(0.5),
+                # nn.BatchNorm2d(filters // 16),
+                nn.LeakyReLU(0.1),
                 nn.Conv2d(filters // 16,
                           filters,
                           kernel_size=1,
                           padding=0,
                           bias=False),
-                # nn.Dropout(0.5),
-                nn.BatchNorm2d(filters),
+                nn.Dropout(0.5),
+                # nn.BatchNorm2d(filters),
                 nn.Sigmoid()
             ])
 
@@ -36,14 +36,14 @@ class SELayer(nn.Module):
 def DBL(in_features, out_features, ksize, stride=1):
     padding = (ksize - 1) // 2
     layers = [
-        nn.BatchNorm2d(in_features),
-        nn.LeakyReLU(0.1, inplace=True),
         nn.Conv2d(in_features,
                   out_features,
                   ksize,
                   stride=stride,
                   padding=padding,
-                  bias=False)
+                  bias=False),
+        nn.BatchNorm2d(out_features),
+        nn.LeakyReLU(0.1),
     ]
     return nn.Sequential(*layers)
 
@@ -56,12 +56,11 @@ class ResUnit(nn.Module):
         self.se = SELayer(filters)
 
     def forward(self, x):
-        origin = x.clone()
+        origin = x
         x = self.dbl1(x)
         x = self.dbl2(x)
         x = self.se(x)
-        x += origin
-        return x
+        return x + origin
 
 
 class SENet(nn.Module):
@@ -72,11 +71,9 @@ class SENet(nn.Module):
                  res_n=[1, 2, 8, 8, 4]):
         super(SENet, self).__init__()
         last_features = 32
-        self.conv1 = nn.Conv2d(in_features,
-                               last_features,
-                               7,
-                               padding=3,
-                               bias=False)
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(in_features, last_features, 7, padding=3, bias=False),
+            nn.BatchNorm2d(last_features), nn.LeakyReLU(0.1))
         res_blocks = []
         for fi, f in enumerate(filters):
             layers = [DBL(last_features, f, 3, 2)] + [ResUnit(f)] * res_n[fi]
@@ -84,9 +81,7 @@ class SENet(nn.Module):
             last_features = f
         self.res_blocks = nn.Sequential(*res_blocks)
         self.fc = nn.Sequential(
-            nn.BatchNorm2d(filters[-1]),
-            nn.LeakyReLU(0.1, inplace=True),
-            nn.Conv2d(filters[-1], out_features, 7, padding=3),
+            nn.Conv2d(filters[-1], out_features, 1, padding=0),
             nn.AdaptiveAvgPool2d(1), nn.Sigmoid())
 
     def forward(self, x):
