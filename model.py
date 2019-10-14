@@ -1,66 +1,53 @@
 import torch
 import torch.nn as nn
 
+relu = nn.LeakyReLU(0.1)
+bn = nn.BatchNorm2d
+
 
 class SELayer(nn.Module):
     def __init__(self, filters):
         super(SELayer, self).__init__()
         self.gap = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Sequential(
-            *[
-                # bias???
-                nn.Conv2d(filters,
-                          filters // 16,
-                          kernel_size=1,
-                          padding=0,
-                          bias=False),
-                nn.Dropout(0.5),
-                # nn.BatchNorm2d(filters // 16),
-                nn.LeakyReLU(0.1),
-                nn.Conv2d(filters // 16,
-                          filters,
-                          kernel_size=1,
-                          padding=0,
-                          bias=False),
-                nn.Dropout(0.5),
-                # nn.BatchNorm2d(filters),
-                nn.Sigmoid()
-            ])
+        self.weight = nn.Sequential(
+            bn(filters),
+            nn.Conv2d(filters, filters // 16, 1, bias=False),
+            relu,
+            nn.Conv2d(filters // 16, filters, 1, bias=False),
+            nn.Sigmoid(),
+        )
 
     def forward(self, x):
-        weights = self.gap(x)
-        weights = self.fc(weights)
-        return x * weights
+        gap = self.gap(x)
+        weight = self.weight(gap)
+        return x * weight
 
 
-def DBL(in_features, out_features, ksize, stride=1):
-    padding = (ksize - 1) // 2
-    layers = [
-        nn.Conv2d(in_features,
-                  out_features,
-                  ksize,
-                  stride=stride,
-                  padding=padding,
-                  bias=False),
-        nn.BatchNorm2d(out_features),
-        nn.LeakyReLU(0.1),
-    ]
-    return nn.Sequential(*layers)
-
-
-class ResUnit(nn.Module):
-    def __init__(self, filters):
-        super(ResUnit, self).__init__()
-        self.dbl1 = DBL(filters, filters // 2, 1)
-        self.dbl2 = DBL(filters // 2, filters, 3)
-        self.se = SELayer(filters)
+class ResBlock(nn.Module):
+    def __init__(self, in_features, out_features, stride=1):
+        super(ResBlock, self).__init__()
+        self.block = nn.Sequential(
+            bn(in_features),
+            relu,
+            SELayer(in_features),
+            nn.Conv2d(in_features, out_features // 2, 1, stride, 0, bias=False),
+            bn(out_features // 2),
+            relu,
+            nn.Conv2d(out_features // 2, out_features, 3, 1, 1, bias=False),
+            # SELayer(out_features),
+        )
+        self.downsample = None
+        if stride > 1 or in_features != out_features:
+            self.downsample = nn.Sequential(
+                nn.Conv2d(in_features, out_features, 3, stride, 1),
+            )
 
     def forward(self, x):
-        origin = x
-        x = self.dbl1(x)
-        x = self.dbl2(x)
-        x = self.se(x)
-        return x + origin
+        if self.downsample is not None:
+            downsample = self.downsample(x)
+        else:
+            downsample = x
+        return downsample + self.block(x)
 
 
 class SENet(nn.Module):
@@ -71,24 +58,33 @@ class SENet(nn.Module):
                  res_n=[1, 2, 8, 8, 4]):
         super(SENet, self).__init__()
         last_features = 32
-        self.conv1 = nn.Sequential(
+        layers = [
             nn.Conv2d(in_features, last_features, 7, padding=3, bias=False),
-            nn.BatchNorm2d(last_features), nn.LeakyReLU(0.1))
-        res_blocks = []
+            # bn(last_features),
+            # relu,
+        ]
         for fi, f in enumerate(filters):
-            layers = [DBL(last_features, f, 3, 2)] + [ResUnit(f)] * res_n[fi]
-            res_blocks.append(nn.Sequential(*layers))
+            layers += [ResBlock(last_features, f, 2)
+                       ] + [ResBlock(f, f)] * res_n[fi]
             last_features = f
-        self.res_blocks = nn.Sequential(*res_blocks)
-        self.fc = nn.Sequential(
-            nn.Conv2d(filters[-1], out_features, 1, padding=0),
-            nn.AdaptiveAvgPool2d(1), nn.Sigmoid())
+        layers += [
+            bn(last_features),
+            relu,
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(filters[-1], out_features, 1),
+            nn.Sigmoid(),
+        ]
+        self.seq = nn.Sequential(*layers)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out')
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.res_blocks(x)
-        x = self.fc(x).view(x.shape[0], -1)
-        return x
+        return torch.flatten(self.seq(x), 1)
 
 
 if __name__ == "__main__":

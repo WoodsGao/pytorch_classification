@@ -3,11 +3,10 @@ from cv_utils import augments
 import torch
 from model import SENet
 import os
-from utils import device, FocalBCELoss
-import torch.optim as optim
+from utils import device, FocalBCELoss, AdaBoundW
 from tqdm import tqdm
 # from test import test
-# from torchsummary import summary
+from torchsummary import summary
 
 print(device)
 
@@ -35,7 +34,6 @@ def train(data_dir,
             augments.Normalize(),
             augments.NHWC2NCHW(),
         ],
-        # balance=True,
     )
     val_loader = ClassifyDataloader(
         val_dir,
@@ -46,7 +44,6 @@ def train(data_dir,
             augments.Normalize(),
             augments.NHWC2NCHW(),
         ],
-        # balance=True,
     )
     best_acc = 0
     best_loss = 1000
@@ -54,7 +51,7 @@ def train(data_dir,
     num_classes = len(train_loader.classes)
     model = SENet(3, num_classes)
     model = model.to(device)
-    # summary(model, (3, img_size, img_size))
+    summary(model, (3, img_size, img_size))
     if resume:
         state_dict = torch.load(resume_path, map_location=device)
         best_acc = state_dict['acc']
@@ -62,15 +59,8 @@ def train(data_dir,
         epoch = state_dict['epoch']
         model.load_state_dict(state_dict['model'])
     criterion = FocalBCELoss(alpha=0.25, gamma=2)
-    # optimizer = optim.Adam([{
-    #     'params': model.backbone.parameters(),
-    #     'lr': 1e-2 * lr
-    # }, {
-    #     'params': model.fc.parameters(),
-    #     'weight_decay': 1e-3
-    # }],
-    #    lr=lr)
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    optimizer = AdaBoundW(model.parameters(), lr=lr, weight_decay=5e-4)
+
     # create dataset
     against_examples = []
     while epoch < epochs:
@@ -85,11 +75,9 @@ def train(data_dir,
             targets = torch.FloatTensor(targets).to(device)
             outputs = model(inputs)
             loss = criterion(outputs, targets)
-            against_examples += [[
-                inputs[li].unsqueeze(0), targets[li].unsqueeze(0)
-            ] for li, l in enumerate(loss) if l > loss.mean()]
-
-            loss.mean().backward()
+            against_examples.append(
+                [inputs[loss > loss.mean()], targets[loss > loss.mean()]])
+            loss.sum().backward()
             total_loss += loss.mean().item()
             pbar.set_description('train loss: %lf' % (total_loss /
                                                       (batch_idx)))
@@ -98,28 +86,17 @@ def train(data_dir,
                 optimizer.step()
                 optimizer.zero_grad()
                 # against examples training
-                if len(against_examples) > 1:
-                    against_batches = (len(against_examples) - 1) // batch_size
-                    for b in range(1, against_batches + 1):
-                        against_inputs = torch.cat([
-                            e[0]
-                            for e in against_examples[(b - 1) * batch_size:b *
-                                                      batch_size]
-                        ])
-                        if against_inputs.size(0) < 2:
-                            continue
-                        against_targets = torch.cat([
-                            e[1]
-                            for e in against_examples[(b - 1) * batch_size:b *
-                                                      batch_size]
-                        ])
-                        outputs = model(against_inputs)
-                        loss = criterion(outputs, against_targets)
-                        loss.mean().backward()
-                        if b % accumulate == 0 or b == against_batches:
-                            optimizer.step()
-                            optimizer.zero_grad()
-                    against_examples = []
+                for example in against_examples:
+                    against_inputs = example[0]
+                    if against_inputs.size(0) < 2:
+                        continue
+                    against_targets = example[1]
+                    outputs = model(against_inputs)
+                    loss = criterion(outputs, against_targets)
+                    loss.sum().backward()
+                optimizer.step()
+                optimizer.zero_grad()
+                against_examples = []
         # validate
         model.eval()
         val_loss = 0
@@ -197,9 +174,9 @@ if __name__ == "__main__":
         augments.Blur(0.3, 0.1),
         augments.Noise(0.3, 0.1),
     ]
-    data_dir = 'data/road_mark'
+    data_dir = 'data/lsr'
     train(data_dir,
-          img_size=32,
+          img_size=64,
           batch_size=32,
           accumulate=4,
           augments_list=augments_list)
