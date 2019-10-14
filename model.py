@@ -30,10 +30,10 @@ class ResBlock(nn.Module):
             bn(in_features),
             relu,
             SELayer(in_features),
-            nn.Conv2d(in_features, out_features // 2, 1, stride, 0, bias=False),
+            nn.Conv2d(in_features, out_features // 2, 1, 1, 0, bias=False),
             bn(out_features // 2),
             relu,
-            nn.Conv2d(out_features // 2, out_features, 3, 1, 1, bias=False),
+            nn.Conv2d(out_features // 2, out_features, 3, stride, 2, bias=False, groups=32, dilation=2),
             # SELayer(out_features),
         )
         self.downsample = None

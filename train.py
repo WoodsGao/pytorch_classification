@@ -115,7 +115,7 @@ def train(data_dir,
             print('\nSaving best_loss.pt..')
             torch.save(state_dict, 'weights/best_loss.pt')
             best_loss = val_loss
-        elif acc > best_acc:
+        if acc > best_acc:
             print('\nSaving best_acc.pt..')
             torch.save(state_dict, 'weights/best_acc.pt')
             best_acc = acc
@@ -136,13 +136,13 @@ if __name__ == "__main__":
     parser.add_argument('--resume', action='store_true')
     parser.add_argument('--resume_path', type=str, default='')
     augments_list = [
-        augments.PerspectiveProject(0.3, 0.1),
-        augments.HSV_H(0.3, 0.1),
-        augments.HSV_S(0.3, 0.1),
-        augments.HSV_V(0.3, 0.1),
-        augments.Rotate(1, 0.1),
-        augments.Blur(0.3, 0.1),
-        augments.Noise(0.3, 0.1),
+        augments.PerspectiveProject(0.3, 0.2),
+        augments.HSV_H(0.3, 0.2),
+        augments.HSV_S(0.3, 0.2),
+        augments.HSV_V(0.3, 0.2),
+        augments.Rotate(1, 0.2),
+        augments.Blur(0.3, 0.2),
+        augments.Noise(0.3, 0.2),
     ]
     opt = parser.parse_args()
     train(data_dir=opt.data_dir,
