@@ -5,8 +5,9 @@ from model import SENet
 import os
 from utils import device, FocalBCELoss, AdaBoundW
 from tqdm import tqdm
-# from test import test
+from test import test
 from torchsummary import summary
+import argparse
 
 print(device)
 
@@ -51,19 +52,21 @@ def train(data_dir,
     num_classes = len(train_loader.classes)
     model = SENet(3, num_classes)
     model = model.to(device)
+    criterion = FocalBCELoss(alpha=0.25, gamma=2)
+    optimizer = AdaBoundW(model.parameters(), lr=lr, weight_decay=5e-4)
     summary(model, (3, img_size, img_size))
     if resume:
         state_dict = torch.load(resume_path, map_location=device)
         best_acc = state_dict['acc']
         best_loss = state_dict['loss']
         epoch = state_dict['epoch']
-        model.load_state_dict(state_dict['model'])
-    criterion = FocalBCELoss(alpha=0.25, gamma=2)
-    optimizer = AdaBoundW(model.parameters(), lr=lr, weight_decay=5e-4)
+        model.load_state_dict(state_dict['model'], strict=False)
+        optimizer.load_state_dict(state_dict['optimizer'])
 
     # create dataset
     against_examples = []
     while epoch < epochs:
+        print('%d/%d' % (epoch, epochs))
         # train
         model.train()
         total_loss = 0
@@ -98,73 +101,40 @@ def train(data_dir,
                 optimizer.zero_grad()
                 against_examples = []
         # validate
-        model.eval()
-        val_loss = 0
-        correct = 0
-        total = 0
-        total_c = torch.zeros(num_classes)
-        tp = torch.zeros(num_classes)
-        fp = torch.zeros(num_classes)
-        tn = torch.zeros(num_classes)
-        fn = torch.zeros(num_classes)
-        with torch.no_grad():
-            pbar = tqdm(range(1, val_loader.iter_times + 1))
-            for batch_idx in pbar:
-                inputs, targets = val_loader.next()
-                inputs = torch.FloatTensor(inputs).to(device)
-                targets = torch.FloatTensor(targets).to(device)
-                outputs = model(inputs)
-                loss = criterion(outputs, targets)
-                val_loss += loss.mean().item()
-                predicted = outputs.max(1)[1]
-                targets = targets.max(1)[1]
-                eq = predicted.eq(targets)
-                total += targets.size(0)
-                correct += eq.sum().item()
-                acc = 100. * correct / total
-
-                for c_i, c in enumerate(val_loader.classes):
-                    indices = targets.eq(c_i).nonzero()
-                    total_c[c_i] += targets.eq(c_i).sum().item()
-                    tp[c_i] += eq[indices].sum().item()
-                    fn[c_i] += targets.eq(c_i).sum().item() - \
-                        eq[indices].sum().item()
-                    indices = predicted.eq(c_i).nonzero()
-                    tn[c_i] += eq[indices].sum().item()
-                    fp[c_i] += predicted.eq(c_i).sum().item() - \
-                        eq[indices].sum().item()
-
-                pbar.set_description('loss: %10lf, acc: %10lf' %
-                                     (val_loss / batch_idx, acc))
-
-        for c_i, c in enumerate(val_loader.classes):
-            print('cls: %10s, targets: %10d, pre: %10lf, rec: %10lf' %
-                  (c, total_c[c_i], tp[c_i] / (tp[c_i] + fp[c_i]), tp[c_i] /
-                   (tp[c_i] + fn[c_i])))
-        val_loss /= val_loader.iter_times
+        val_loss, acc = test(model, val_loader, criterion)
         # Save checkpoint.
         state_dict = {
             'model': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
             'acc': acc,
             'loss': val_loss,
             'epoch': epoch
         }
-        torch.save(state_dict, 'weights/last.pth')
+        torch.save(state_dict, 'weights/last.pt')
         if val_loss < best_loss:
-            print('\nSaving..')
-            torch.save(state_dict, 'weights/best_loss.pth')
+            print('\nSaving best_loss.pt..')
+            torch.save(state_dict, 'weights/best_loss.pt')
             best_loss = val_loss
         elif acc > best_acc:
-            print('\nSaving..')
-            torch.save(state_dict, 'weights/best_acc.pth')
+            print('\nSaving best_acc.pt..')
+            torch.save(state_dict, 'weights/best_acc.pt')
             best_acc = acc
         if epoch % 10 == 0 and epoch > 1:
-            print('\nSaving..')
-            torch.save(state_dict, 'weights/backup%d.pth' % epoch)
+            print('\nSaving backup%d.pt..' % epoch)
+            torch.save(state_dict, 'weights/backup%d.pt' % epoch)
         epoch += 1
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_dir', type=str, required=True)
+    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--img_size', type=int, default=224)
+    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--accumulate', type=int, default=8)
+    parser.add_argument('--lr', type=float, default=1e-3)
+    parser.add_argument('--resume', action='store_true')
+    parser.add_argument('--resume_path', type=str, default='')
     augments_list = [
         augments.PerspectiveProject(0.3, 0.1),
         augments.HSV_H(0.3, 0.1),
@@ -174,9 +144,13 @@ if __name__ == "__main__":
         augments.Blur(0.3, 0.1),
         augments.Noise(0.3, 0.1),
     ]
-    data_dir = 'data/lsr'
-    train(data_dir,
-          img_size=64,
-          batch_size=32,
-          accumulate=4,
+    opt = parser.parse_args()
+    train(data_dir=opt.data_dir,
+          epochs=opt.epochs,
+          img_size=opt.img_size,
+          batch_size=opt.batch_size,
+          accumulate=opt.accumulate,
+          lr=opt.lr,
+          resume=opt.resume,
+          resume_path=opt.resume_path,
           augments_list=augments_list)
