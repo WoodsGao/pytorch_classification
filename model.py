@@ -24,7 +24,7 @@ class SELayer(nn.Module):
 
 
 class ResBlock(nn.Module):
-    def __init__(self, in_features, out_features, stride=1):
+    def __init__(self, in_features, out_features, stride=1, dilation=1):
         super(ResBlock, self).__init__()
         self.block = nn.Sequential(
             bn(in_features),
@@ -37,10 +37,10 @@ class ResBlock(nn.Module):
                       out_features,
                       3,
                       stride,
-                      2,
+                      dilation,
                       bias=False,
-                      groups=32,
-                      dilation=2),
+                      groups=32 if out_features % 32 == 0 else 1,
+                      dilation=dilation),
             # SELayer(out_features),
         )
         self.downsample = None
@@ -64,19 +64,19 @@ class SENet(nn.Module):
         super(SENet, self).__init__()
         assert (len(filters) == 5 and len(res_n) == 5)
         self.conv1 = nn.Conv2d(3, 32, 7, padding=3, bias=False)
-        layers = [ResBlock(32, filters[0], 2)
+        layers = [ResBlock(32, filters[0], 2, dilation=2)
                   ] + [ResBlock(filters[0], filters[0])] * res_n[0]
         self.res1 = nn.Sequential(*layers)
-        layers = [ResBlock(filters[0], filters[1], 2)
+        layers = [ResBlock(filters[0], filters[1], 2, dilation=2)
                   ] + [ResBlock(filters[1], filters[1])] * res_n[1]
         self.res2 = nn.Sequential(*layers)
-        layers = [ResBlock(filters[1], filters[2], 2)
+        layers = [ResBlock(filters[1], filters[2], 2, dilation=2)
                   ] + [ResBlock(filters[2], filters[2])] * res_n[2]
         self.res3 = nn.Sequential(*layers)
-        layers = [ResBlock(filters[2], filters[3], 2)
+        layers = [ResBlock(filters[2], filters[3], 2, dilation=2)
                   ] + [ResBlock(filters[3], filters[3])] * res_n[3]
         self.res4 = nn.Sequential(*layers)
-        layers = [ResBlock(filters[3], filters[4], 2)
+        layers = [ResBlock(filters[3], filters[4], 2, dilation=2)
                   ] + [ResBlock(filters[4], filters[4])] * res_n[4]
         self.res5 = nn.Sequential(*layers)
         self.fc = nn.Sequential(
