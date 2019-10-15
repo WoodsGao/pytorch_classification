@@ -57,23 +57,20 @@ class SENet(nn.Module):
                  res_n=[1, 2, 8, 8, 4]):
         super(SENet, self).__init__()
         last_features = 32
-        layers = [
-            nn.Conv2d(3, last_features, 7, padding=3, bias=False),
-            # bn(last_features),
-            # relu,
-        ]
+        self.conv1 = nn.Conv2d(3, last_features, 7, padding=3, bias=False)
+        res_blocks = []
         for fi, f in enumerate(filters):
-            layers += [ResBlock(last_features, f, 2)
-                       ] + [ResBlock(f, f)] * res_n[fi]
+            layers = [ResBlock(last_features, f, 2)] + [ResBlock(f, f)] * res_n[fi]
+            res_blocks.append(nn.Sequential(*layers))
             last_features = f
-        layers += [
+        self.res_blocks = nn.ModuleList(res_blocks)
+        self.fc = nn.Sequential(
             bn(last_features),
             relu,
             nn.AdaptiveAvgPool2d(1),
             nn.Conv2d(filters[-1], num_classes, 1),
             nn.Sigmoid(),
-        ]
-        self.seq = nn.Sequential(*layers)
+        )
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -83,11 +80,16 @@ class SENet(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
     def forward(self, x):
-        return torch.flatten(self.seq(x), 1)
+        x = self.conv1(x)
+        for res_block in self.res_blocks:
+            x = res_block(x)
+        x = self.fc(x)
+        x = torch.flatten(x, 1)
+        return x
 
 
 if __name__ == "__main__":
-    model = SENet(3, 8)
+    model = SENet(8)
     a = torch.ones([2, 3, 224, 224])
     b = model(a)
     print(b.shape)
