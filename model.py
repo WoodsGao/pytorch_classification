@@ -52,14 +52,13 @@ class ResBlock(nn.Module):
 
 class SENet(nn.Module):
     def __init__(self,
-                 in_features,
-                 out_features,
+                 num_classes,
                  filters=[64, 128, 256, 512, 1024],
                  res_n=[1, 2, 8, 8, 4]):
         super(SENet, self).__init__()
         last_features = 32
         layers = [
-            nn.Conv2d(in_features, last_features, 7, padding=3, bias=False),
+            nn.Conv2d(3, last_features, 7, padding=3, bias=False),
             # bn(last_features),
             # relu,
         ]
@@ -71,7 +70,7 @@ class SENet(nn.Module):
             bn(last_features),
             relu,
             nn.AdaptiveAvgPool2d(1),
-            nn.Conv2d(filters[-1], out_features, 1),
+            nn.Conv2d(filters[-1], num_classes, 1),
             nn.Sigmoid(),
         ]
         self.seq = nn.Sequential(*layers)

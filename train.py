@@ -50,7 +50,7 @@ def train(data_dir,
     best_loss = 1000
     epoch = 0
     num_classes = len(train_loader.classes)
-    model = SENet(3, num_classes)
+    model = SENet(num_classes)
     model = model.to(device)
     criterion = FocalBCELoss(alpha=0.25, gamma=2)
     optimizer = AdaBoundW(model.parameters(), lr=lr, weight_decay=5e-4)
