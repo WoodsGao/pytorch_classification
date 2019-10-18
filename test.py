@@ -1,9 +1,10 @@
-from cv_utils.dataloader import ClassifyDataloader
-from cv_utils import augments
 import torch
 from model import SENet
 import os
-from utils import device, FocalBCELoss
+from utils import device
+from utils.dataloader import Dataloader
+from utils import augments
+from utils.loss import FocalBCELoss
 from tqdm import tqdm
 import argparse
 
@@ -66,7 +67,7 @@ if __name__ == "__main__":
     opt = parser.parse_args()
 
     criterion = FocalBCELoss(alpha=0.25, gamma=2)
-    val_loader = ClassifyDataloader(
+    val_loader = Dataloader(
         opt.data_dir,
         img_size=opt.img_size,
         batch_size=opt.batch_size,

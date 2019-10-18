@@ -1,9 +1,11 @@
-from cv_utils.dataloader import ClassifyDataloader
-from cv_utils import augments
 import torch
 from model import SENet
 import os
-from utils import device, FocalBCELoss, AdaBoundW
+from utils import device
+from utils.dataloader import Dataloader
+from utils import augments
+from utils.loss import FocalBCELoss
+from utils.optim import AdaBoundW
 from tqdm import tqdm
 from test import test
 from torchsummary import summary
@@ -26,7 +28,7 @@ def train(data_dir,
 
     train_dir = os.path.join(data_dir, 'train')
     val_dir = os.path.join(data_dir, 'val')
-    train_loader = ClassifyDataloader(
+    train_loader = Dataloader(
         train_dir,
         img_size=img_size,
         batch_size=batch_size,
@@ -36,7 +38,7 @@ def train(data_dir,
             augments.NHWC2NCHW(),
         ],
     )
-    val_loader = ClassifyDataloader(
+    val_loader = Dataloader(
         val_dir,
         img_size=img_size,
         batch_size=batch_size,
