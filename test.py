@@ -1,6 +1,5 @@
 import torch
 from model import SENet
-import os
 from utils import device
 from utils.dataloader import Dataloader
 from utils import augments
@@ -49,7 +48,6 @@ def test(model, val_loader, criterion):
 
             pbar.set_description('loss: %10lf, acc: %10lf' %
                                  (val_loss / batch_idx, acc))
-
     for c_i, c in enumerate(val_loader.classes):
         print('cls: %10s, targets: %10d, pre: %10lf, rec: %10lf' %
               (c, total_c[c_i], tp[c_i] / (tp[c_i] + fp[c_i]), tp[c_i] /
