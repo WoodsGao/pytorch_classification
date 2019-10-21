@@ -6,15 +6,15 @@ import cv2
 
 class Dataloader(dataloader.Dataloader):
     def build_data_list(self):
-        self.classes = os.listdir(self.data_dir)
+        self.classes = os.listdir(self.path)
         self.classes.sort()
         for ci, c in enumerate(self.classes):
-            names = os.listdir(os.path.join(self.data_dir, c))
+            names = os.listdir(os.path.join(self.path, c))
             for name in names:
                 target = np.zeros(len(self.classes))
                 target[ci] = 1
                 self.data_list.append(
-                    [os.path.join(self.data_dir, c, name), target])
+                    [os.path.join(self.path, c, name), target])
 
     def worker(self, message):
         img = cv2.imread(message[0])
