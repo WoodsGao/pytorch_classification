@@ -36,12 +36,12 @@ def test(model, val_loader, criterion):
             acc = 100. * correct / total
 
             for c_i, c in enumerate(val_loader.classes):
-                indices = targets.eq(c_i).nonzero()
-                total_c[c_i] += targets.eq(c_i).sum().item()
+                indices = targets.eq(c_i)
+                total_c[c_i] += indices.sum().item()
                 tp[c_i] += eq[indices].sum().item()
-                fn[c_i] += targets.eq(c_i).sum().item() - \
+                fn[c_i] += indices.sum().item() - \
                     eq[indices].sum().item()
-                indices = predicted.eq(c_i).nonzero()
+                indices = predicted.eq(c_i)
                 tn[c_i] += eq[indices].sum().item()
                 fp[c_i] += predicted.eq(c_i).sum().item() - \
                     eq[indices].sum().item()
