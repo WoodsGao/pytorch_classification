@@ -15,10 +15,11 @@ class FocalBCELoss(nn.Module):
             self.weight = None
 
     def forward(self, y_pred, y_true):
+        y_pred = torch.clamp(y_pred, 1e-5, 1 - 1e-5)
         a = self.alpha
         g = self.gamma
-        loss = - a * torch.pow((1 - y_pred), g) * y_true * torch.log(y_pred + 1e-5) - \
-            (1 - a) * torch.pow(y_pred, g) * (1 - y_true) * torch.log(1 - y_pred + 1e-5)
+        loss = - a * torch.pow((1 - y_pred), g) * y_true * torch.log(y_pred) - \
+            (1 - a) * torch.pow(y_pred, g) * (1 - y_true) * torch.log(1 - y_pred)
         if self.weight is not None:
             loss *= self.weight
         return loss.sum(1)

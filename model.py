@@ -1,59 +1,7 @@
 import torch
 import torch.nn as nn
-
-relu = nn.LeakyReLU(0.1)
-bn = nn.BatchNorm2d
-
-
-class SELayer(nn.Module):
-    def __init__(self, filters):
-        super(SELayer, self).__init__()
-        self.gap = nn.AdaptiveAvgPool2d(1)
-        self.weight = nn.Sequential(
-            bn(filters),
-            nn.Conv2d(filters, filters // 16, 1, bias=False),
-            relu,
-            nn.Conv2d(filters // 16, filters, 1, bias=False),
-            nn.Sigmoid(),
-        )
-
-    def forward(self, x):
-        gap = self.gap(x)
-        weight = self.weight(gap)
-        return x * weight
-
-
-class ResBlock(nn.Module):
-    def __init__(self, in_features, out_features, stride=1, dilation=1):
-        super(ResBlock, self).__init__()
-        self.block = nn.Sequential(
-            bn(in_features),
-            relu,
-            SELayer(in_features),
-            nn.Conv2d(in_features, out_features // 2, 1, 1, 0, bias=False),
-            bn(out_features // 2),
-            relu,
-            nn.Conv2d(out_features // 2,
-                      out_features,
-                      3,
-                      stride,
-                      dilation,
-                      bias=False,
-                      groups=32 if out_features % 32 == 0 else 1,
-                      dilation=dilation),
-            # SELayer(out_features),
-        )
-        self.downsample = None
-        if stride > 1 or in_features != out_features:
-            self.downsample = nn.Sequential(
-                nn.Conv2d(in_features, out_features, 3, stride, 1), )
-
-    def forward(self, x):
-        if self.downsample is not None:
-            downsample = self.downsample(x)
-        else:
-            downsample = x
-        return downsample + self.block(x)
+import math
+from utils.blocks import *
 
 
 class SENet(nn.Module):
@@ -64,19 +12,19 @@ class SENet(nn.Module):
         super(SENet, self).__init__()
         assert (len(filters) == 5 and len(res_n) == 5)
         self.conv1 = nn.Conv2d(3, 32, 7, padding=3, bias=False)
-        layers = [ResBlock(32, filters[0], 2, dilation=2)
-                  ] + [ResBlock(filters[0], filters[0])] * res_n[0]
+        layers = [ResBlock(32, filters[0], 2)
+                  ] + [ResBlock(filters[0], filters[0], se_block=True)] * res_n[0]
         self.res1 = nn.Sequential(*layers)
-        layers = [ResBlock(filters[0], filters[1], 2, dilation=2)
-                  ] + [ResBlock(filters[1], filters[1])] * res_n[1]
+        layers = [ResBlock(filters[0], filters[1], 2)
+                  ] + [ResBlock(filters[1], filters[1], se_block=True)] * res_n[1]
         self.res2 = nn.Sequential(*layers)
-        layers = [ResBlock(filters[1], filters[2], 2, dilation=2)
-                  ] + [ResBlock(filters[2], filters[2])] * res_n[2]
+        layers = [ResBlock(filters[1], filters[2], 2)
+                  ] + [ResBlock(filters[2], filters[2], se_block=True)] * res_n[2]
         self.res3 = nn.Sequential(*layers)
-        layers = [ResBlock(filters[2], filters[3], 2, dilation=2)
+        layers = [ResBlock(filters[2], filters[3], 2)
                   ] + [ResBlock(filters[3], filters[3])] * res_n[3]
         self.res4 = nn.Sequential(*layers)
-        layers = [ResBlock(filters[3], filters[4], 2, dilation=2)
+        layers = [ResBlock(filters[3], filters[4], 2)
                   ] + [ResBlock(filters[4], filters[4])] * res_n[4]
         self.res5 = nn.Sequential(*layers)
         self.fc = nn.Sequential(
@@ -89,10 +37,11 @@ class SENet(nn.Module):
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out')
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))
             elif isinstance(m, nn.BatchNorm2d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
 
     def forward(self, x):
         x = self.conv1(x)
