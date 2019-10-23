@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import math
-from utils.blocks import *
+from utils.blocks import bn, relu, ResBlock
 
 
 class SENet(nn.Module):
@@ -28,9 +28,9 @@ class SENet(nn.Module):
                   ] + [ResBlock(filters[4], filters[4])] * res_n[4]
         self.res5 = nn.Sequential(*layers)
         self.fc = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
             bn(filters[4]),
             relu,
-            nn.AdaptiveAvgPool2d(1),
             nn.Conv2d(filters[-1], num_classes, 1),
             nn.Sigmoid(),
         )

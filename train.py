@@ -22,7 +22,8 @@ def train(data_dir,
           lr=1e-3,
           resume=False,
           resume_path='',
-          augments_list=[]):
+          augments_list=[],
+          multi_scale=False):
     if not os.path.exists('weights'):
         os.mkdir('weights')
 
@@ -37,6 +38,7 @@ def train(data_dir,
             augments.Normalize(),
             augments.NHWC2NCHW(),
         ],
+        multi_scale=multi_scale
     )
     val_loader = Dataloader(
         val_dir,
@@ -56,7 +58,7 @@ def train(data_dir,
     model = model.to(device)
     criterion = FocalBCELoss(alpha=0.25, gamma=2)
     optimizer = AdaBoundW(model.parameters(), lr=lr, weight_decay=5e-4)
-    summary(model, (3, img_size, img_size))
+    # summary(model, (3, img_size, img_size))
     if resume:
         state_dict = torch.load(resume_path, map_location=device)
         best_acc = state_dict['acc']
@@ -84,8 +86,7 @@ def train(data_dir,
                 [inputs[loss > loss.mean()], targets[loss > loss.mean()]])
             loss.sum().backward()
             total_loss += loss.mean().item()
-            pbar.set_description('train loss: %lf' % (total_loss /
-                                                      (batch_idx)))
+            pbar.set_description('train loss: %10lf scale: %10d' % (total_loss / batch_idx, inputs.size(2)))
             if batch_idx % accumulate == 0 or \
                     batch_idx == train_loader.iter_times:
                 optimizer.step()
@@ -137,6 +138,7 @@ if __name__ == "__main__":
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--resume', action='store_true')
     parser.add_argument('--resume_path', type=str, default='')
+    parser.add_argument('--multi_scale', action='store_true')
     augments_list = [
         augments.PerspectiveProject(0.3, 0.2),
         augments.HSV_H(0.3, 0.2),
@@ -155,4 +157,5 @@ if __name__ == "__main__":
           lr=opt.lr,
           resume=opt.resume,
           resume_path=opt.resume_path,
-          augments_list=augments_list)
+          augments_list=augments_list,
+          multi_scale=opt.multi_scale)

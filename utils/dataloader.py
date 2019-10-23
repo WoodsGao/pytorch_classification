@@ -16,9 +16,9 @@ class Dataloader(dataloader.Dataloader):
                 self.data_list.append(
                     [os.path.join(self.path, c, name), target])
 
-    def worker(self, message):
+    def worker(self, message, scale):
         img = cv2.imread(message[0])
-        img = cv2.resize(img, (self.img_size, self.img_size))
+        img = cv2.resize(img, (scale, scale))
         for aug in self.augments:
             img, _, __ = aug(img)
         return img, message[1]
