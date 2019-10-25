@@ -11,8 +11,6 @@ import argparse
 def test(model, val_loader, criterion):
     model.eval()
     val_loss = 0
-    correct = 0
-    total = 0
     num_classes = len(val_loader.classes)
     total_size = 0
     tp = torch.zeros(num_classes)
@@ -42,13 +40,13 @@ def test(model, val_loader, criterion):
                 fp[c_i] += fpi
 
             pbar.set_description('loss: %10lf, acc: %10lf' %
-                                 (val_loss / batch_idx, tp.sum()/total_size))
+                                 (val_loss / batch_idx, tp.sum() / total_size))
     for c_i, c in enumerate(val_loader.classes):
         print('cls: %10s, targets: %10d, pre: %10lf, rec: %10lf' %
-              (c, tp[c_i]+fn[c_i], tp[c_i] / (tp[c_i] + fp[c_i]), tp[c_i] /
+              (c, tp[c_i] + fn[c_i], tp[c_i] / (tp[c_i] + fp[c_i]), tp[c_i] /
                (tp[c_i] + fn[c_i])))
     val_loss /= val_loader.iter_times
-    return val_loss, tp.sum()/total_size
+    return val_loss, tp.sum() / total_size
 
 
 if __name__ == "__main__":

@@ -1,37 +1,50 @@
 import torch
 import torch.nn as nn
 import math
-from utils.blocks import bn, relu, ResBlock
+from utils.blocks import bn, relu, ResBlock, BLD, EmptyLayer
 
 
 class SENet(nn.Module):
-    def __init__(self,
-                 num_classes,
-                 filters=[64, 128, 256, 512, 1024],
-                 res_n=[1, 2, 8, 8, 4]):
+    def __init__(self, num_classes):
         super(SENet, self).__init__()
-        assert (len(filters) == 5 and len(res_n) == 5)
-        self.conv1 = nn.Conv2d(3, 32, 7, padding=3, bias=False)
-        layers = [ResBlock(32, filters[0], 2)
-                  ] + [ResBlock(filters[0], filters[0], se_block=True)] * res_n[0]
-        self.res1 = nn.Sequential(*layers)
-        layers = [ResBlock(filters[0], filters[1], 2)
-                  ] + [ResBlock(filters[1], filters[1], se_block=True)] * res_n[1]
-        self.res2 = nn.Sequential(*layers)
-        layers = [ResBlock(filters[1], filters[2], 2)
-                  ] + [ResBlock(filters[2], filters[2], se_block=True)] * res_n[2]
-        self.res3 = nn.Sequential(*layers)
-        layers = [ResBlock(filters[2], filters[3], 2)
-                  ] + [ResBlock(filters[3], filters[3])] * res_n[3]
-        self.res4 = nn.Sequential(*layers)
-        layers = [ResBlock(filters[3], filters[4], 2)
-                  ] + [ResBlock(filters[4], filters[4])] * res_n[4]
-        self.res5 = nn.Sequential(*layers)
+
+        # full pre-activation
+        conv_block = BLD
+        res_block = ResBlock
+        self.conv1 = nn.Conv2d(3, 32, 7, 1, 3)
+        self.additional_module = nn.Sequential(
+            bn(512), relu
+        )
+        self.backbone = nn.Sequential(
+            conv_block(32, 32, stride=2),
+            conv_block(32, 32, dilation=3),
+            conv_block(32, 64, stride=2),
+            res_block(64, 64),
+            res_block(64, 64, dilation=3),
+            res_block(64, 128, stride=2),
+            res_block(128, 128),
+            res_block(128, 128, dilation=3),
+            res_block(128, 128),
+            res_block(128, 128, dilation=7),
+            res_block(128, 128),
+            res_block(128, 128, dilation=17),
+            res_block(128, 128),
+            res_block(128, 256, stride=2),
+            res_block(256, 256),
+            res_block(256, 256, dilation=3),
+            res_block(256, 256),
+            res_block(256, 256, dilation=7),
+            res_block(256, 256),
+            res_block(256, 256, dilation=17),
+            res_block(256, 256),
+            res_block(256, 512, stride=2),
+            res_block(512, 512),
+            res_block(512, 512, dilation=7),
+            res_block(512, 512),
+        )
         self.fc = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
-            bn(filters[4]),
-            relu,
-            nn.Conv2d(filters[-1], num_classes, 1),
+            nn.Conv2d(512, num_classes, 1),
             nn.Sigmoid(),
         )
 
@@ -45,11 +58,8 @@ class SENet(nn.Module):
 
     def forward(self, x):
         x = self.conv1(x)
-        x = self.res1(x)
-        x = self.res2(x)
-        x = self.res3(x)
-        x = self.res4(x)
-        x = self.res5(x)
+        x = self.backbone(x)
+        x = self.additional_module(x)
         x = self.fc(x)
         x = torch.flatten(x, 1)
         return x

@@ -2,7 +2,7 @@ import torch
 from model import SENet
 import os
 from utils import device
-from utils.dataloader import Dataloader
+from utils.dataloader import Dataloader, show_batch
 from utils import augments
 from utils.loss import FocalBCELoss
 from utils.optim import AdaBoundW
@@ -50,6 +50,8 @@ def train(data_dir,
             augments.NHWC2NCHW(),
         ],
     )
+    show_batch('train_batch.png', train_loader.data_list[:8], img_size, train_loader.classes, augments_list)
+    show_batch('val_batch.png', val_loader.data_list[:8], img_size, val_loader.classes)
     best_acc = 0
     best_loss = 1000
     epoch = 0
@@ -83,8 +85,8 @@ def train(data_dir,
             outputs = model(inputs)
             loss = criterion(outputs, targets)
             against_examples.append(
-                [inputs[loss > loss.mean()], targets[loss > loss.mean()]])
-            loss.sum().backward()
+                [inputs[loss > 2 * loss.mean()], targets[loss > 2 * loss.mean()]])
+            loss.mean().backward()
             total_loss += loss.mean().item()
             pbar.set_description('train loss: %10lf scale: %10d' % (total_loss / batch_idx, inputs.size(2)))
             if batch_idx % accumulate == 0 or \
@@ -99,7 +101,8 @@ def train(data_dir,
                     against_targets = example[1]
                     outputs = model(against_inputs)
                     loss = criterion(outputs, against_targets)
-                    loss.sum().backward()
+                    loss /= batch_size
+                    loss.mean().backward()
                 optimizer.step()
                 optimizer.zero_grad()
                 against_examples = []
@@ -135,18 +138,18 @@ if __name__ == "__main__":
     parser.add_argument('--img_size', type=int, default=224)
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--accumulate', type=int, default=8)
-    parser.add_argument('--lr', type=float, default=1e-3)
+    parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--resume', action='store_true')
     parser.add_argument('--resume_path', type=str, default='')
     parser.add_argument('--multi_scale', action='store_true')
     augments_list = [
-        augments.PerspectiveProject(0.3, 0.2),
+        augments.PerspectiveProject(0.3, 0.1),
         augments.HSV_H(0.3, 0.2),
         augments.HSV_S(0.3, 0.2),
         augments.HSV_V(0.3, 0.2),
-        augments.Rotate(1, 0.2),
-        augments.Blur(0.3, 0.2),
-        augments.Noise(0.3, 0.2),
+        augments.Rotate(1, 0.1),
+        augments.Blur(0.03, 0.1),
+        augments.Noise(0.3, 0.1),
     ]
     opt = parser.parse_args()
     train(data_dir=opt.data_dir,

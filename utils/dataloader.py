@@ -22,3 +22,17 @@ class Dataloader(dataloader.Dataloader):
         for aug in self.augments:
             img, _, __ = aug(img)
         return img, message[1]
+
+
+def show_batch(save_path, messages, scale, classes, augments_list=[]):
+    imgs = []
+    for message in messages:
+        img = cv2.imread(message[0])
+        img = cv2.resize(img, (scale, scale))
+        for aug in augments_list:
+            img, _, __ = aug(img)
+        imgs.append(img)
+    save_img = np.concatenate(imgs, 1)
+    save_img = np.clip(save_img, 0, 255)
+    save_img = np.uint8(save_img)
+    cv2.imwrite(save_path, save_img)
