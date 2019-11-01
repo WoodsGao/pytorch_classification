@@ -82,8 +82,7 @@ class ClassificationDataset(torch.utils.data.Dataset):
 def show_batch(save_path, inputs, targets, classes):
     imgs = []
     for bi, (img, c) in enumerate(zip(inputs, targets)):
-        img -= img.min()
-        img /= img.max() / 255.
+        img *= 255.
         img.clamp(0, 255)
         img = img.long().numpy().transpose(1, 2, 0)
         img = img[:, :, ::-1]
