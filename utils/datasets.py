@@ -80,6 +80,8 @@ class ClassificationDataset(torch.utils.data.Dataset):
 
 
 def show_batch(save_path, inputs, targets, classes):
+    inputs = inputs.clone()
+    targets = targets.clone()
     imgs = []
     for bi, (img, c) in enumerate(zip(inputs, targets)):
         img *= 255.
