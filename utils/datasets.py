@@ -88,6 +88,9 @@ def show_batch(save_path, inputs, targets, classes):
         img.clamp(0, 255)
         img = img.long().numpy().transpose(1, 2, 0)
         img = img[:, :, ::-1]
+        img = np.uint8(img)
+        img = cv2.resize(img, (128, 128))
+        cv2.putText(img, classes[c.item()], (0, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
         imgs.append(img)
 
     imgs = np.concatenate(imgs, 1)
