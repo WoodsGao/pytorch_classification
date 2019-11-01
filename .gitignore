@@ -10,7 +10,9 @@ __pycache__/
 *.png
 data/
 .vscode/
-weights/*
+weights/
+ttmp/
+vtmp/
 
 # Distribution / packaging
 .Python
