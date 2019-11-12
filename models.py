@@ -1,54 +1,17 @@
 import torch
 import torch.nn as nn
 import math
-from utils.blocks import bn, lrelu, ResBlock, BLD, EmptyLayer
+from utils.modules.nn import Swish
+from utils.modules.backbones import DenseNet, Mini, ResNet, Xception
 
 
 class SENet(nn.Module):
     def __init__(self, num_classes):
         super(SENet, self).__init__()
         # full pre-activation
-        self.conv1 = nn.Conv2d(3, 32, 7, 1, 3)
-        self.block1 = nn.Sequential(ResBlock(32, 64, stride=2))
-        self.block2 = nn.Sequential(
-            ResBlock(64, 128, stride=2),
-            ResBlock(128, 128),
-            ResBlock(128, 128, dilation=6),
-            ResBlock(128, 128),
-        )
-        self.block3 = nn.Sequential(
-            ResBlock(128, 256, stride=2),
-            ResBlock(256, 256),
-            ResBlock(256, 256, dilation=6),
-            ResBlock(256, 256),
-            ResBlock(256, 256, dilation=12),
-            ResBlock(256, 256),
-            ResBlock(256, 256, dilation=18),
-            ResBlock(256, 256),
-        )
-        self.block4 = nn.Sequential(
-            ResBlock(256, 512, stride=2),
-            ResBlock(512, 512),
-            ResBlock(512, 512, dilation=6),
-            ResBlock(512, 512),
-            ResBlock(512, 512, dilation=12),
-            ResBlock(512, 512),
-            ResBlock(512, 512, dilation=18),
-            ResBlock(512, 512),
-            ResBlock(512, 512, dilation=30),
-            ResBlock(512, 512),
-        )
-        self.block5 = nn.Sequential(
-            ResBlock(512, 1024, stride=2),
-            ResBlock(1024, 1024),
-            ResBlock(1024, 1024, dilation=6),
-            ResBlock(1024, 1024, dilation=12),
-            ResBlock(1024, 1024, dilation=18),
-            ResBlock(1024, 1024),
-        )
+        self.backbone = DenseNet()
         self.fc = nn.Sequential(
-            bn(1024),
-            lrelu,
+            nn.BatchNorm2d(1024), Swish(),
             nn.Conv2d(1024, num_classes, 1),
             nn.AdaptiveAvgPool2d((1, 1)),
         )
@@ -62,12 +25,7 @@ class SENet(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.block1(x)
-        x = self.block2(x)
-        x = self.block3(x)
-        x = self.block4(x)
-        x = self.block5(x)
+        x = self.backbone(x)
         x = self.fc(x)
         x = torch.flatten(x, 1)
         return x

@@ -1,10 +1,8 @@
 import torch
 from models import SENet
-from utils import device
 from torch.utils.data import DataLoader
-from utils.datasets import ClassificationDataset, show_batch
-from utils.losses import compute_loss
-from utils import augments
+from utils.modules.datasets import ClassificationDataset
+from utils.utils import compute_loss, show_batch, device
 from tqdm import tqdm
 import argparse
 
@@ -53,7 +51,7 @@ def test(model, val_loader):
                 F1[F1 <= 0] = 1
                 F1 = 2 * tp / F1
 
-            pbar.set_description('loss: %8lf, mAP: %8lf, F1: %8lf' %
+            pbar.set_description('loss: %8lf, prec: %8lf, F1: %8lf' %
                                  (val_loss / batch_idx, P.mean(), F1.mean()))
 
     for c_i, c in enumerate(classes):
@@ -74,12 +72,7 @@ if __name__ == "__main__":
 
     val_data = ClassificationDataset(
         opt.val_list,
-        img_size=opt.img_size,
-        augments=[
-            augments.BGR2RGB(),
-            augments.Normalize(),
-            augments.NHWC2NCHW(),
-        ],
+        img_size=opt.img_size
     )
     val_loader = DataLoader(
         val_data,
@@ -94,5 +87,5 @@ if __name__ == "__main__":
     if opt.weights:
         state_dict = torch.load(opt.weights, map_location=device)
         model.load_state_dict(state_dict['model'])
-    val_loss, mAP = test(model, val_loader)
-    print('val_loss: %8g   mAP: %8g' % (val_loss, mAP))
+    val_loss, prec = test(model, val_loader)
+    print('val_loss: %8g   prec: %8g' % (val_loss, prec))
