@@ -5,9 +5,10 @@ from utils.modules.nn import Swish
 from utils.modules.backbones import DenseNet, Mini, ResNet, Xception
 
 
-class SENet(nn.Module):
+# gap classification model
+class GCM(nn.Module):
     def __init__(self, num_classes):
-        super(SENet, self).__init__()
+        super(GCM, self).__init__()
         # full pre-activation
         self.backbone = DenseNet()
         self.fc = nn.Sequential(

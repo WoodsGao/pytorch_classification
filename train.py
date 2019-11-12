@@ -3,7 +3,7 @@ from torch.utils.data import DataLoader
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
-from models import SENet
+from models import GCM
 import os
 from utils.utils import device, compute_loss, show_batch
 from utils.modules.datasets import ClassificationDataset
@@ -72,7 +72,7 @@ def train(data_dir,
     epoch = 0
     classes = train_loader.dataset.classes
     num_classes = len(classes)
-    model = SENet(num_classes)
+    model = GCM(1024)
     model = model.to(device)
     # optimizer = AdaBoundW(model.parameters(), lr=lr, weight_decay=5e-4)
     if adam:

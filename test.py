@@ -1,5 +1,5 @@
 import torch
-from models import SENet
+from models import GCM
 from torch.utils.data import DataLoader
 from utils.modules.datasets import ClassificationDataset
 from utils.utils import compute_loss, show_batch, device
@@ -80,9 +80,7 @@ if __name__ == "__main__":
         shuffle=True,
         num_workers=opt.num_workers,
     )
-    classes = val_loader.dataset.classes
-    num_classes = len(classes)
-    model = SENet(num_classes)
+    model = GCM(1024)
     model = model.to(device)
     if opt.weights:
         state_dict = torch.load(opt.weights, map_location=device)

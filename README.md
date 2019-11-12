@@ -39,3 +39,11 @@ Then execute `python3 split_dataset.py data/<custom>` . It splits the data into 
 ### Training
 
     python3 train.py --data-dir data/<custom> --img-size 224 --batch-size 8 --accumulate 8 --epoch 200 --lr 1e-4 --adam
+
+### Testing
+
+    python3 test.py --val-list /data/<custom>/valid.txt --img-size 224 --batch-size 8
+
+### Inference
+
+    python3 inference.py --img-dir data/samples --img-size 224 --output_path outputs.csv --weights weights/best_prec.pt
