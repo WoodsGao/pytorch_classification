@@ -16,21 +16,23 @@ def inference(img_dir='data/samples',
     model = model.to(device)
     state_dict = torch.load(weights, map_location=device)
     model.load_state_dict(state_dict['model'])
+    model.eval()
     names = [
         n for n in os.listdir(img_dir)
         if os.path.splitext(n)[1] in ['.jpg', '.jpeg', '.png', '.tiff']
     ]
-    for name in tqdm(names):
-        path = os.path.join(img_dir, name)
-        img = cv2.imread(path)
-        h = (img.shape[0] / max(img.shape[:2]) * img_size) // 32
-        w = (img.shape[1] / max(img.shape[:2]) * img_size) // 32
-        img = cv2.resize(img, (int(w * 32), int(h * 32)))
-        img = img[:, :, ::-1]
-        img = img.transpose(2, 0, 1)
-        img = torch.FloatTensor([img], device=device) / 255.
-        output = model(img).softmax(1).max(1)
-        outputs += '%s, %5lf, %d\n' % (path, output[0], output[1])
+    with torch.no_grad():
+        for name in tqdm(names):
+            path = os.path.join(img_dir, name)
+            img = cv2.imread(path)
+            h = (img.shape[0] / max(img.shape[:2]) * img_size) // 32
+            w = (img.shape[1] / max(img.shape[:2]) * img_size) // 32
+            img = cv2.resize(img, (int(w * 32), int(h * 32)))
+            img = img[:, :, ::-1]
+            img = img.transpose(2, 0, 1)
+            img = torch.FloatTensor([img], device=device) / 255.
+            output = model(img).softmax(1).max(1)
+            outputs += '%s, %5lf, %d\n' % (path, output[0], output[1])
     with open(output_path, 'w') as f:
         f.write(outputs)
 
