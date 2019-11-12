@@ -12,6 +12,7 @@ data/
 .vscode/
 weights/
 ttmp/
+runs/
 vtmp/
 
 # Distribution / packaging

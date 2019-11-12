@@ -16,20 +16,17 @@ def compute_loss(outputs, targets):
 
 
 def show_batch(save_path, inputs, targets, classes):
-    inputs = inputs.clone()
-    targets = targets.clone()
-    imgs = []
-    for bi, (img, c) in enumerate(zip(inputs, targets)):
-        img *= 255.
-        img.clamp(0, 255)
-        img = img.long().numpy().transpose(1, 2, 0)
-        img = img[:, :, ::-1]
-        img = np.uint8(img)
+    imgs = inputs.clone()[:8]
+    labels = targets.clone()[:8]
+    imgs *= 255.
+    imgs = imgs.clamp(0, 255).permute(0, 2, 3, 1).byte().numpy()[:, :, :, ::-1]
+    out_imgs = []
+    for bi, (img, c) in enumerate(zip(imgs, labels)):
         img = cv2.resize(img, (128, 128))
         cv2.putText(img, classes[c.item()], (0, 30), cv2.FONT_HERSHEY_SIMPLEX,
                     0.5, (0, 0, 255), 1)
-        imgs.append(img)
+        out_imgs.append(img)
 
-    imgs = np.concatenate(imgs, 1)
+    imgs = np.concatenate(out_imgs, 0)
     save_img = imgs
     cv2.imwrite(save_path, save_img)
