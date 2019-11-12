@@ -28,7 +28,7 @@ def inference(img_dir='data/samples',
         img = cv2.resize(img, (int(w * 32), int(h * 32)))
         img = img[:, :, ::-1]
         img = img.transpose(2, 0, 1)
-        img = torch.FloatTensor([img], device=device)
+        img = torch.FloatTensor([img], device=device) / 255.
         output = model(img).softmax(1).max(1)
         outputs += '%s, %5lf, %d\n' % (path, output[0], output[1])
     with open(output_path, 'w') as f:
