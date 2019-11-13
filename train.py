@@ -24,6 +24,18 @@ writer = SummaryWriter()
 # if torch.cuda.is_available():
 #     torch.backends.cudnn.benchmark = True
 
+augments = {
+    'hsv': 0.1,
+    'blur': 0.1,
+    'pepper': 0.1,
+    'shear': 0.1,
+    'translate': 0.1,
+    'rotate': 0.1,
+    'flip': 0.1,
+    'scale': 0.1,
+    'noise': 0.1,
+}
+
 
 def train(data_dir,
           epochs=100,
@@ -34,9 +46,8 @@ def train(data_dir,
           resume=False,
           weights='',
           num_workers=0,
-          augments={},
           multi_scale=False,
-          adam=False, 
+          adam=False,
           no_test=False):
     os.makedirs('weights', exist_ok=True)
     if multi_scale:
@@ -202,17 +213,6 @@ if __name__ == "__main__":
     parser.add_argument('--multi-scale', action='store_true')
     parser.add_argument('--num-workers', type=int, default=0)
     parser.add_argument('--no-test', action='store_true')
-    augments = {
-        'hsv': 0.1,
-        'blur': 0.1,
-        'pepper': 0.1,
-        'shear': 0.1,
-        'translate': 0.1,
-        'rotate': 0.1,
-        'flip': 0.1,
-        'scale': 0.1,
-        'noise': 0.1,
-    }
     opt = parser.parse_args()
     train(
         data_dir=opt.data_dir,
@@ -225,7 +225,6 @@ if __name__ == "__main__":
         weights=opt.weights,
         adam=opt.adam,
         num_workers=opt.num_workers,
-        augments=augments,
         multi_scale=opt.multi_scale,
         no_test=opt.no_test,
     )
