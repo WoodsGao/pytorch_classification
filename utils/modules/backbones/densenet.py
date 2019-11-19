@@ -1,5 +1,5 @@
 import torch.nn as nn
-from ..nn import Swish, DenseBlock, DBL
+from ..nn import Swish, DenseBlock, CNS
 
 
 class DenseNet(nn.Module):
@@ -17,7 +17,7 @@ class DenseNet(nn.Module):
             block5_stride = 1
 
         self.block1 = nn.Sequential(
-            DBL(3, 32, 7),
+            nn.Conv2d(3, 32, 7, 1, 3, bias=False),
             DenseBlock(32, 64, stride=2),
         )
         self.block2 = nn.Sequential(

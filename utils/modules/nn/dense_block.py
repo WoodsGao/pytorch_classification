@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from . import BLD, EmptyLayer
+from . import NSC, EmptyLayer
 
 
 class CutLayer(nn.Module):
@@ -18,7 +18,6 @@ class DenseBlock(nn.Module):
                  out_channels,
                  stride=1,
                  dilation=1,
-                 drop_rate=0.5,
                  se_block=False):
         super(DenseBlock, self).__init__()
         assert in_channels == out_channels or 2 * in_channels == out_channels
@@ -30,20 +29,14 @@ class DenseBlock(nn.Module):
         else:
             self.downsample = nn.Conv2d(in_channels, out_channels, 3, stride, 1)
         self.block = nn.Sequential(
-            BLD(in_channels, out_channels // 2, 1),
-            BLD(
-                out_channels // 2,
-                out_channels // 2,
-                stride=stride,
-                dilation=dilation,
-                groups=out_channels // 2,
-            ),
-            BLD(
+            NSC(in_channels, out_channels // 2, 1),
+            NSC(
                 out_channels // 2,
                 out_channels,
-                1,
+                stride=stride,
+                dilation=dilation,
+                groups=32 if out_channels % 64 == 0 else 1,
             ),
-            nn.Dropout(drop_rate) if drop_rate > 0 else EmptyLayer(),
         )
 
     def forward(self, x):
