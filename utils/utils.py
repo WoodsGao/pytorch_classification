@@ -12,7 +12,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 def compute_loss(outputs, targets):
-    loss = BCE(outputs.softmax(1), F.one_hot(targets, num_classes=outputs.size(1)).float())
+    loss = CE(outputs, targets)
     return loss
 
 
