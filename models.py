@@ -17,7 +17,6 @@ class GCM(BasicModel):
             nn.AdaptiveAvgPool2d((1, 1)),
         )
         self.init()
-        self.weight_standard()
 
     def forward(self, x):
         x = self.backbone(x)
