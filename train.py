@@ -131,7 +131,7 @@ def train(data_dir,
                                           optimizer,
                                           opt_level='O1',
                                           verbosity=0)
-    # create dataset
+    optimizer.zero_grad()
     while epoch < epochs:
         print('%d/%d' % (epoch, epochs))
         # train
@@ -147,7 +147,7 @@ def train(data_dir,
             targets = targets.to(device)
             if multi_scale:
                 img_size = random.randrange(img_size_min, img_size_max) * 32
-            if multi_scale:
+            if inputs.size(3) != img_size:
                 inputs = F.interpolate(inputs,
                                        size=img_size,
                                        mode='bilinear',
@@ -169,7 +169,7 @@ def train(data_dir,
                                  (mem, total_loss / batch_idx, inputs.size(2)))
             if accumulate_count % accumulate == 0:
                 accumulate_count = 0
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
+                # torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
                 optimizer.step()
                 optimizer.zero_grad()
         torch.cuda.empty_cache()

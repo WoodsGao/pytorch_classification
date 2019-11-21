@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
-import math
-from utils.modules.nn import Swish
-from utils.modules.backbones import DenseNet, BasicModel, EfficientNetB4
+from utils.modules.backbones import BasicModel, EfficientNetB4
 
 
 # gap classification model
@@ -12,9 +10,8 @@ class GCM(BasicModel):
         # full pre-activation
         self.backbone = EfficientNetB4()
         self.fc = nn.Sequential(
-            nn.GroupNorm(8, 448), Swish(),
-            nn.Conv2d(448, num_classes, 1),
             nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Conv2d(448, num_classes, 1),
         )
         self.init()
 

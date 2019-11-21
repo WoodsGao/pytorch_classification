@@ -2,14 +2,17 @@ import numpy as np
 import cv2
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from .modules.nn import FocalBCELoss
 
-CE = nn.CrossEntropyLoss(reduction='mean')
-BCE = nn.BCELoss(reduction='mean')
+CE = nn.CrossEntropyLoss()
+BCE = nn.BCELoss()
+focal = FocalBCELoss()
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 def compute_loss(outputs, targets):
-    loss = CE(outputs, targets)
+    loss = BCE(outputs.softmax(1), F.one_hot(targets, num_classes=outputs.size(1)).float())
     return loss
 
 
