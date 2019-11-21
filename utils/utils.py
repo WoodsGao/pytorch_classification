@@ -3,15 +3,13 @@ import cv2
 import torch
 import torch.nn as nn
 
-CE = nn.CrossEntropyLoss(reduction='none')
-BCE = nn.BCELoss(reduction='none')
+CE = nn.CrossEntropyLoss(reduction='mean')
+BCE = nn.BCELoss(reduction='mean')
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 def compute_loss(outputs, targets):
-    cls_loss = CE(outputs, targets)
-    cls_loss = cls_loss.mean()
-    loss = cls_loss
+    loss = CE(outputs, targets)
     return loss
 
 

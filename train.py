@@ -56,50 +56,56 @@ def train(data_dir,
     train_list = os.path.join(data_dir, 'train.txt')
     val_list = os.path.join(data_dir, 'valid.txt')
     train_data = ClassificationDataset(train_list,
-                                       '/tmp/clsttmp',
-                                       cache_len=1000,
                                        img_size=img_size,
                                        augments=augments)
     train_loader = DataLoader(
         train_data,
         batch_size=batch_size,
         shuffle=True,
+        pin_memory=True,
         num_workers=num_workers,
     )
     val_data = ClassificationDataset(
         val_list,
-        '/tmp/clsvtmp',
-        cache_len=1000,
         img_size=img_size,
     )
     val_loader = DataLoader(
         val_data,
         batch_size=batch_size,
         shuffle=True,
+        pin_memory=True,
         num_workers=num_workers,
     )
+    accumulate_count = 0
     best_prec = 0
     best_loss = 1000
     epoch = 0
     classes = train_loader.dataset.classes
     num_classes = len(classes)
-    model = GCM(1024)
+    model = GCM(num_classes)
     model = model.to(device)
     # optimizer = AdaBoundW(model.parameters(), lr=lr, weight_decay=5e-4)
     if adam:
-        optimizer = optim.Adam(model.parameters(), lr=lr, amsgrad=True)
+        optimizer = optim.AdamW(model.parameters(),
+                                lr=lr if lr > 0 else 1e-4,
+                                weight_decay=1e-5)
     else:
-        optimizer = optim.SGD(
-            model.parameters(),
-            lr=lr,
-            momentum=0.9,
-            #   weight_decay=5e-4,
-            nesterov=True)
+        optimizer = optim.SGD(model.parameters(),
+                              lr=lr if lr > 0 else 1e-3,
+                              momentum=0.9,
+                              weight_decay=1e-5,
+                              nesterov=True)
     if resume:
         state_dict = torch.load(weights, map_location=device)
         if adam:
             if 'adam' in state_dict:
                 optimizer.load_state_dict(state_dict['adam'])
+        else:
+            if 'sgd' in state_dict:
+                optimizer.load_state_dict(state_dict['sgd'])
+        if lr > 0:
+            for pg in optimizer.param_groups:
+                pg['lr'] = lr
         best_prec = state_dict['prec']
         best_loss = state_dict['loss']
         epoch = state_dict['epoch']
@@ -135,10 +141,12 @@ def train(data_dir,
         optimizer.zero_grad()
         for idx, (inputs, targets) in pbar:
             batch_idx = idx + 1
-            if idx == 0 and epoch == 0:
+            if idx == 0:
                 show_batch('train_batch.png', inputs, targets, classes)
             inputs = inputs.to(device)
             targets = targets.to(device)
+            if multi_scale:
+                img_size = random.randrange(img_size_min, img_size_max) * 32
             if multi_scale:
                 inputs = F.interpolate(inputs,
                                        size=img_size,
@@ -147,35 +155,37 @@ def train(data_dir,
             outputs = model(inputs)
             loss = compute_loss(outputs, targets)
             total_loss += loss.item()
-            loss *= batch_size / 64.
+            loss /= accumulate
             # Compute gradient
             if mixed_precision:
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
             else:
                 loss.backward()
+            accumulate_count += 1
             mem = torch.cuda.memory_cached() / 1E9 if torch.cuda.is_available(
             ) else 0  # (GB)
             pbar.set_description('train mem: %5.2lfGB loss: %8lf scale: %8d' %
                                  (mem, total_loss / batch_idx, inputs.size(2)))
-            if batch_idx % accumulate == 0 or \
-                    batch_idx == len(train_loader):
+            if accumulate_count % accumulate == 0:
+                accumulate_count = 0
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
                 optimizer.step()
                 optimizer.zero_grad()
-
-                # multi scale
-                if multi_scale:
-                    img_size = random.randrange(img_size_min,
-                                                img_size_max) * 32
+                model.weight_standard()
         torch.cuda.empty_cache()
         writer.add_scalar('train_loss', total_loss / len(train_loader), epoch)
         print('')
         # validate
+        val_loss = best_loss
+        prec = best_prec
         if not no_test:
             val_loss, prec = test(model, val_loader)
-        writer.add_scalar('valid_loss', val_loss, epoch)
-        writer.add_scalar('prec', prec, epoch)
+            writer.add_scalar('valid_loss', val_loss, epoch)
+            writer.add_scalar('prec', prec, epoch)
         epoch += 1
+        for pg in optimizer.param_groups:
+            pg['lr'] *= (1 - 1e-8)
         # Save checkpoint.
         state_dict = {
             'model': model.state_dict(),
@@ -185,6 +195,8 @@ def train(data_dir,
         }
         if adam:
             state_dict['adam'] = optimizer.state_dict()
+        else:
+            state_dict['sgd'] = optimizer.state_dict()
         torch.save(state_dict, 'weights/last.pt')
         if val_loss < best_loss:
             print('\nSaving best_loss.pt..')
@@ -206,7 +218,7 @@ if __name__ == "__main__":
     parser.add_argument('--img-size', type=int, default=32)
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--accumulate', type=int, default=2)
-    parser.add_argument('--lr', type=float, default=1e-3)
+    parser.add_argument('--lr', type=float, default=0)
     parser.add_argument('--resume', action='store_true')
     parser.add_argument('--adam', action='store_true')
     parser.add_argument('--weights', type=str, default='weights/last.pt')
