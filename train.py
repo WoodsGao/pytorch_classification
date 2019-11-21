@@ -156,7 +156,7 @@ def train(data_dir,
             loss = compute_loss(outputs, targets)
             total_loss += loss.item()
             loss /= accumulate
-            # Compute gradient
+            # Compute gradientc
             if mixed_precision:
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
