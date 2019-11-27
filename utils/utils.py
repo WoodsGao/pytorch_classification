@@ -31,3 +31,17 @@ def show_batch(save_path, inputs, targets, classes):
     imgs = np.concatenate(out_imgs, 0)
     save_img = imgs
     cv2.imwrite(save_path, save_img)
+
+
+def compute_metrics(tp, fn, fp):
+    T = tp + fn
+    P = tp + fp
+    P[P <= 0] = 1
+    P = tp / P
+    R = tp + fn
+    R[R <= 0] = 1
+    R = tp / R
+    F1 = (2 * tp + fp + fn)
+    F1[F1 <= 0] = 1
+    F1 = 2 * tp / F1
+    return T, P, R, F1

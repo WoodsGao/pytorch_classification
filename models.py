@@ -4,9 +4,9 @@ from utils.modules.backbones import BasicModel, EfficientNetB4
 
 
 # gap classification model
-class GCM(BasicModel):
+class EfficientNet(BasicModel):
     def __init__(self, num_classes):
-        super(GCM, self).__init__()
+        super(EfficientNet, self).__init__()
         # full pre-activation
         self.backbone = EfficientNetB4()
         self.fc = nn.Sequential(
@@ -23,7 +23,7 @@ class GCM(BasicModel):
 
 
 if __name__ == "__main__":
-    model = GCM(8)
+    model = EfficientNet(8)
     a = torch.ones([2, 3, 224, 224])
     b = model(a)
     print(b.shape)

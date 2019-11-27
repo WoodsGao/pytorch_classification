@@ -2,7 +2,7 @@ import os
 import argparse
 from tqdm import tqdm
 import torch
-from models import GCM
+from models import EfficientNet
 from utils.utils import device
 import cv2
 
@@ -12,7 +12,7 @@ def inference(img_dir='data/samples',
               output_path='outputs.csv',
               weights='weights/best_prec.pt'):
     outputs = ''
-    model = GCM(1024)
+    model = EfficientNet(20)
     model = model.to(device)
     state_dict = torch.load(weights, map_location=device)
     model.load_state_dict(state_dict['model'])

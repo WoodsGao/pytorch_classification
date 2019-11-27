@@ -1,27 +1,27 @@
 import torch
-from models import GCM
+from models import EfficientNet
+import torch.distributed as dist
 from torch.utils.data import DataLoader
 from utils.modules.datasets import ClassificationDataset
-from utils.utils import compute_loss, show_batch, device
+from utils.modules.utils import device
+from utils.utils import compute_loss, show_batch, compute_metrics
 from tqdm import tqdm
 import argparse
 
 
-def test(model, val_loader):
+def test(model, fetcher, distributed=False):
     model.eval()
     val_loss = 0
-    classes = val_loader.dataset.classes
+    classes = fetcher.loader.dataset.classes
     num_classes = len(classes)
     total_size = 0
     tp = torch.zeros(num_classes)
     fp = torch.zeros(num_classes)
     fn = torch.zeros(num_classes)
     with torch.no_grad():
-        pbar = tqdm(enumerate(val_loader), total=len(val_loader))
+        pbar = tqdm(enumerate(fetcher), total=len(fetcher))
         for idx, (inputs, targets) in pbar:
             batch_idx = idx + 1
-            inputs = inputs.to(device)
-            targets = targets.to(device)
             outputs = model(inputs)
             loss = compute_loss(outputs, targets)
             val_loss += loss.item()
@@ -40,25 +40,21 @@ def test(model, val_loader):
                 tp[c_i] += tpi
                 fn[c_i] += fni
                 fp[c_i] += fpi
-                T = tp + fn
-                P = tp + fp
-                P[P <= 0] = 1
-                P = tp / P
-                R = tp + fn
-                R[R <= 0] = 1
-                R = tp / R
-                F1 = (2 * tp + fp + fn)
-                F1[F1 <= 0] = 1
-                F1 = 2 * tp / F1
-
-            pbar.set_description('loss: %8lf, prec: %8lf, F1: %8lf' %
+            T, P, R, F1 = compute_metrics(tp, fn, fp)
+            pbar.set_description('loss: %8g, prec: %8g, F1: %8g' %
                                  (val_loss / batch_idx, P.mean(), F1.mean()))
-
+    if distributed:
+        tp = tp.to(device)
+        fn = fn.to(device)
+        fp = fp.to(device)
+        dist.all_reduce(tp, op=dist.ReduceOp.SUM)
+        dist.all_reduce(fn, op=dist.ReduceOp.SUM)
+        dist.all_reduce(fp, op=dist.ReduceOp.SUM)
+        T, P, R, miou, F1 = compute_metrics(tp.cpu(), fn.cpu(), fp.cpu())
     for c_i, c in enumerate(classes):
-        print('cls: %8s, targets: %8d, pre: %8lf, rec: %8lf, F1: %8lf' %
+        print('cls: %8s, targets: %8d, pre: %8g, rec: %8g, F1: %8g' %
               (c, T[c_i], P[c_i], R[c_i], F1[c_i]))
-    val_loss /= len(val_loader)
-    return val_loss, P.mean().item()
+    return P.mean().item()
 
 
 if __name__ == "__main__":
@@ -70,17 +66,14 @@ if __name__ == "__main__":
     parser.add_argument('--num-workers', type=int, default=0)
     opt = parser.parse_args()
 
-    val_data = ClassificationDataset(
-        opt.val_list,
-        img_size=opt.img_size
-    )
+    val_data = ClassificationDataset(opt.val_list, img_size=opt.img_size)
     val_loader = DataLoader(
         val_data,
         batch_size=opt.batch_size,
         shuffle=True,
         num_workers=opt.num_workers,
     )
-    model = GCM(1024)
+    model = EfficientNet(1024)
     model = model.to(device)
     if opt.weights:
         state_dict = torch.load(opt.weights, map_location=device)
