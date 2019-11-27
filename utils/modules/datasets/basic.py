@@ -1,17 +1,16 @@
 import torch
-from torch.multiprocessing import Process, Queue
-import random
 from tqdm import tqdm
 import os
 import lmdb
 import pickle
 import base64
 import time
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from threading import Thread
+from concurrent.futures import ThreadPoolExecutor
 
 
 class BasicDataset(torch.utils.data.Dataset):
-    def __init__(self, path, img_size=224, augments={}):
+    def __init__(self, path, img_size=224, augments={}, skip_init=False):
         super(BasicDataset, self).__init__()
         os.makedirs('tmp', exist_ok=True)
         self.path = path
@@ -25,10 +24,11 @@ class BasicDataset(torch.utils.data.Dataset):
         self.cache_list = []
         self.db_name = 'tmp/' + base64.b64encode(
             os.path.abspath(path).encode('utf-8')).decode('utf-8')
-        self.init_db()
-        if len(augments):
-            p = Process(target=self.worker)
-            p.start()
+        if not skip_init:
+            self.init_db()
+            if len(augments) > 0:
+                p = Thread(target=self.worker, daemon=True)
+                p.start()
 
     def init_db(self):
         # init
@@ -60,9 +60,12 @@ class BasicDataset(torch.utils.data.Dataset):
                 items = list(
                     pool.map(self.get_item, missed_keys[ki:ki + batch_size]))
                 items = list(
-                    pool.map(pickle.dumps,
-                            [[item, self.checks[key]]
-                            for item, key in zip(items, missed_keys[ki:ki + batch_size])]))
+                    pool.map(
+                        pickle.dumps,
+                        [[item, self.checks[key]]
+                         for item, key in zip(items, missed_keys[ki:ki +
+                                                                 batch_size])
+                         ]))
                 for item, key in zip(items, missed_keys[ki:ki + batch_size]):
                     txn.put(key.to_bytes(10, 'little'), value=item)
                 # break
