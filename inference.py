@@ -10,7 +10,7 @@ import cv2
 def inference(img_dir='data/samples',
               img_size=224,
               output_path='outputs.csv',
-              weights='weights/best_prec.pt'):
+              weights='weights/best.pt'):
     outputs = ''
     model = EfficientNet(20)
     model = model.to(device)
