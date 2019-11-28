@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from utils.modules.backbones import BasicModel, EfficientNetB4
+from utils.modules.backbones import BasicModel, EfficientNetB4, EfficientNetB2
 
 
 # gap classification model
@@ -8,10 +8,10 @@ class EfficientNet(BasicModel):
     def __init__(self, num_classes):
         super(EfficientNet, self).__init__()
         # full pre-activation
-        self.backbone = EfficientNetB4()
+        self.backbone = EfficientNetB2()
         self.fc = nn.Sequential(
             nn.AdaptiveAvgPool2d((1, 1)),
-            nn.Conv2d(448, num_classes, 1),
+            nn.Conv2d(352, num_classes, 1),
         )
         self.init()
 

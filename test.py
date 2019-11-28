@@ -54,7 +54,7 @@ def test(model, fetcher, distributed=False):
     for c_i, c in enumerate(classes):
         print('cls: %8s, targets: %8d, pre: %8g, rec: %8g, F1: %8g' %
               (c, T[c_i], P[c_i], R[c_i], F1[c_i]))
-    return P.mean().item()
+    return F1.mean().item()
 
 
 if __name__ == "__main__":
@@ -73,7 +73,7 @@ if __name__ == "__main__":
         shuffle=True,
         num_workers=opt.num_workers,
     )
-    model = EfficientNet(1024)
+    model = EfficientNet(20)
     model = model.to(device)
     if opt.weights:
         state_dict = torch.load(opt.weights, map_location=device)

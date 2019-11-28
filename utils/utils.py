@@ -12,7 +12,8 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 def compute_loss(outputs, targets):
-    loss = CE(outputs, targets)
+    targets = F.one_hot(targets, 20).float()
+    loss = focal(outputs.softmax(1), targets)
     return loss
 
 
@@ -24,8 +25,9 @@ def show_batch(save_path, inputs, targets, classes):
     out_imgs = []
     for bi, (img, c) in enumerate(zip(imgs, labels)):
         img = cv2.resize(img, (128, 128))
-        cv2.putText(img, classes[c.item()], (0, 30), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5, (0, 0, 255), 1)
+        if c < len(classes):
+            cv2.putText(img, classes[c.item()], (0, 30), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 0, 255), 1)
         out_imgs.append(img)
 
     imgs = np.concatenate(out_imgs, 0)
