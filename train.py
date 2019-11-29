@@ -23,11 +23,6 @@ def train(data_dir,
           notest=False,
           mixed_precision=False,
           local_rank=0):
-    if dist.is_available():
-        try:
-            dist.init_process_group(backend="gloo", init_method="env://")
-        except:
-            pass
     os.makedirs('weights', exist_ok=True)
     train_dir = os.path.join(data_dir, 'train.txt')
     val_dir = os.path.join(data_dir, 'valid.txt')
@@ -91,6 +86,11 @@ def train(data_dir,
 
 
 if __name__ == "__main__":
+    if dist.is_available():
+        try:
+            dist.init_process_group(backend="gloo", init_method="env://")
+        except:
+            pass
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-dir', type=str, default='data/voc')
     parser.add_argument('--epochs', type=int, default=100)
