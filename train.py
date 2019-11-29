@@ -104,7 +104,7 @@ if __name__ == "__main__":
     parser.add_argument('--notest', action='store_true')
     parser.add_argument('--weights', type=str, default='')
     parser.add_argument('--multi-scale', action='store_true')
-    parser.add_argument('--local_rank', type=int, default=4)
+    parser.add_argument('--local_rank', type=int, default=0)
     augments = {
         'hsv': 0.1,
         'blur': 0.1,
@@ -134,3 +134,5 @@ if __name__ == "__main__":
         mixed_precision=opt.mp,
         local_rank=opt.local_rank,
     )
+    if dist.is_initialized():
+        dist.destroy_process_group()
