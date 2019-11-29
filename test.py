@@ -43,7 +43,7 @@ def test(model, fetcher):
             T, P, R, F1 = compute_metrics(tp, fn, fp)
             pbar.set_description('loss: %8g, prec: %8g, F1: %8g' %
                                  (val_loss / batch_idx, P.mean(), F1.mean()))
-    if dist.is_available() and dist.is_initialized():
+    if dist.is_initialized():
         tp = tp.to(device)
         fn = fn.to(device)
         fp = fp.to(device)

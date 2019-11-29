@@ -42,6 +42,6 @@ if __name__ == "__main__":
     parser.add_argument('--img-dir', type=str, default='data/samples')
     parser.add_argument('--output-path', type=str, default='outputs.csv')
     parser.add_argument('--img-size', type=int, default=224)
-    parser.add_argument('--weights', type=str, default='weights/best_prec.pt')
+    parser.add_argument('--weights', type=str, default='weights/best.pt')
     opt = parser.parse_args()
     inference(opt.img_dir, opt.img_size, opt.output_path, opt.weights)

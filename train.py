@@ -1,5 +1,4 @@
 import os
-import random
 import argparse
 from torch.utils.data import DataLoader, DistributedSampler
 import torch.distributed as dist
@@ -22,7 +21,13 @@ def train(data_dir,
           augments={},
           multi_scale=False,
           notest=False,
-          mixed_precision=False):
+          mixed_precision=False,
+          local_rank=0):
+    if dist.is_available():
+        try:
+            dist.init_process_group(backend="gloo", init_method="env://")
+        except:
+            pass
     os.makedirs('weights', exist_ok=True)
     train_dir = os.path.join(data_dir, 'train.txt')
     val_dir = os.path.join(data_dir, 'valid.txt')
@@ -30,22 +35,24 @@ def train(data_dir,
         train_dir,
         img_size=img_size,
         augments=augments,
+        skip_init=(local_rank > 0),
     )
     if not notest:
         val_data = ClassificationDataset(
             val_dir,
             img_size=img_size,
             augments={},
+            skip_init=(local_rank > 0),
         )
-    if dist.is_available() and dist.is_initialized():
+    if dist.is_initialized():
         dist.barrier()
     train_loader = DataLoader(
         train_data,
         batch_size=batch_size,
-        shuffle=not (dist.is_available() and dist.is_initialized()),
+        shuffle=not (dist.is_initialized()),
         sampler=DistributedSampler(train_data, dist.get_world_size(),
                                    dist.get_rank())
-        if dist.is_available() and dist.is_initialized() else None,
+        if dist.is_initialized() else None,
         pin_memory=True,
         num_workers=num_workers,
     )
@@ -54,10 +61,10 @@ def train(data_dir,
         val_loader = DataLoader(
             val_data,
             batch_size=batch_size,
-            shuffle=not (dist.is_available() and dist.is_initialized()),
+            shuffle=not (dist.is_initialized()),
             sampler=DistributedSampler(val_data, dist.get_world_size(),
                                        dist.get_rank())
-            if dist.is_available() and dist.is_initialized() else None,
+            if dist.is_initialized() else None,
             pin_memory=True,
             num_workers=num_workers,
         )
@@ -78,9 +85,8 @@ def train(data_dir,
                 save_path_list.append('best.pt')
                 print('save best, metrics: %g...' % metrics)
         save_path_list = [os.path.join('weights', p) for p in save_path_list]
-        if dist.is_available() and dist.is_initialized():
-            if dist.get_rank() > 0:
-                continue
+        if local_rank > 0:
+            continue
         trainer.save(save_path_list)
 
 
@@ -98,6 +104,7 @@ if __name__ == "__main__":
     parser.add_argument('--notest', action='store_true')
     parser.add_argument('--weights', type=str, default='')
     parser.add_argument('--multi-scale', action='store_true')
+    parser.add_argument('--local_rank', type=int, default=4)
     augments = {
         'hsv': 0.1,
         'blur': 0.1,
@@ -125,4 +132,5 @@ if __name__ == "__main__":
         notest=opt.notest,
         adam=opt.adam,
         mixed_precision=opt.mp,
+        local_rank=opt.local_rank,
     )
