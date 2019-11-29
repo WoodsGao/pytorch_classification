@@ -1,14 +1,14 @@
 import torch
 import torch.nn as nn
-from utils.modules.backbones import BasicModel, EfficientNetB4, EfficientNetB2
+from utils.modules.backbones import BasicModel, EfficientNet
 
 
 # gap classification model
-class EfficientNet(BasicModel):
+class EfficientNetGCM(BasicModel):
     def __init__(self, num_classes):
-        super(EfficientNet, self).__init__()
+        super(EfficientNetGCM, self).__init__()
         # full pre-activation
-        self.backbone = EfficientNetB2()
+        self.backbone = EfficientNet(2)
         self.fc = nn.Sequential(
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Conv2d(352, num_classes, 1),
@@ -23,7 +23,7 @@ class EfficientNet(BasicModel):
 
 
 if __name__ == "__main__":
-    model = EfficientNet(8)
+    model = EfficientNetGCM(8)
     a = torch.ones([2, 3, 224, 224])
     b = model(a)
     print(b.shape)

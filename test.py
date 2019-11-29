@@ -1,5 +1,5 @@
 import torch
-from models import EfficientNet
+from models import EfficientNetGCM
 import torch.distributed as dist
 from torch.utils.data import DataLoader
 from utils.modules.datasets import ClassificationDataset
@@ -9,7 +9,7 @@ from tqdm import tqdm
 import argparse
 
 
-def test(model, fetcher, distributed=False):
+def test(model, fetcher):
     model.eval()
     val_loss = 0
     classes = fetcher.loader.dataset.classes
@@ -43,7 +43,7 @@ def test(model, fetcher, distributed=False):
             T, P, R, F1 = compute_metrics(tp, fn, fp)
             pbar.set_description('loss: %8g, prec: %8g, F1: %8g' %
                                  (val_loss / batch_idx, P.mean(), F1.mean()))
-    if distributed:
+    if dist.is_available() and dist.is_initialized():
         tp = tp.to(device)
         fn = fn.to(device)
         fp = fp.to(device)
@@ -73,7 +73,7 @@ if __name__ == "__main__":
         shuffle=True,
         num_workers=opt.num_workers,
     )
-    model = EfficientNet(20)
+    model = EfficientNetGCM(20)
     model = model.to(device)
     if opt.weights:
         state_dict = torch.load(opt.weights, map_location=device)
