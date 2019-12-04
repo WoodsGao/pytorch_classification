@@ -11,7 +11,7 @@ focal = FocalBCELoss()
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
-def compute_loss(outputs, targets):
+def compute_loss(outputs, targets, model=None):
     targets = F.one_hot(targets, 20).float()
     loss = focal(outputs.softmax(1), targets)
     return loss
