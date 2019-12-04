@@ -65,7 +65,7 @@ def train(data_dir,
         )
         val_fetcher = Fetcher(val_loader, post_fetch_fn=val_data.post_fetch_fn)
 
-    model = EfficientNetGCM(20)
+    model = EfficientNetGCM(1000)
     trainer = Trainer(model, train_fetcher, compute_loss, weights, accumulate,
                       adam, lr, mixed_precision)
     while trainer.epoch < epochs:

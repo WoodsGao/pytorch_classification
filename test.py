@@ -14,7 +14,8 @@ def test(model, fetcher):
     val_loss = 0
     classes = fetcher.loader.dataset.classes
     num_classes = len(classes)
-    total_size = 0
+    total_size = torch.Tensor(0)
+    true_size = torch.Tensor(0)
     tp = torch.zeros(num_classes)
     fp = torch.zeros(num_classes)
     fn = torch.zeros(num_classes)
@@ -23,7 +24,7 @@ def test(model, fetcher):
         for idx, (inputs, targets) in pbar:
             batch_idx = idx + 1
             outputs = model(inputs)
-            loss = compute_loss(outputs, targets)
+            loss = compute_loss(outputs, targets, model)
             val_loss += loss.item()
             predicted = outputs.max(1)[1]
             if idx == 0:
@@ -31,6 +32,7 @@ def test(model, fetcher):
                            classes)
             eq = predicted.eq(targets)
             total_size += predicted.size(0)
+            true_size += eq.size()
             for c_i, c in enumerate(classes):
                 indices = targets.eq(c_i)
                 positive = indices.sum().item()
@@ -40,21 +42,24 @@ def test(model, fetcher):
                 tp[c_i] += tpi
                 fn[c_i] += fni
                 fp[c_i] += fpi
-            T, P, R, F1 = compute_metrics(tp, fn, fp)
-            pbar.set_description('loss: %8g, prec: %8g, F1: %8g' %
-                                 (val_loss / batch_idx, P.mean(), F1.mean()))
+            pbar.set_description('loss: %8g, acc: %8g' %
+                                 (val_loss / batch_idx, true_size / total_size))
     if dist.is_initialized():
         tp = tp.to(device)
         fn = fn.to(device)
         fp = fp.to(device)
+        total_size = total_size.to(device)
+        true_size = true_size.to(device)
         dist.all_reduce(tp, op=dist.ReduceOp.SUM)
         dist.all_reduce(fn, op=dist.ReduceOp.SUM)
         dist.all_reduce(fp, op=dist.ReduceOp.SUM)
+        dist.all_reduce(total_size, op=dist.ReduceOp.SUM)
+        dist.all_reduce(true_size, op=dist.ReduceOp.SUM)
         T, P, R, miou, F1 = compute_metrics(tp.cpu(), fn.cpu(), fp.cpu())
     for c_i, c in enumerate(classes):
         print('cls: %8s, targets: %8d, pre: %8g, rec: %8g, F1: %8g' %
               (c, T[c_i], P[c_i], R[c_i], F1[c_i]))
-    return F1.mean().item()
+    return true_size / total_size
 
 
 if __name__ == "__main__":
