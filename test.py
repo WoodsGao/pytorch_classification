@@ -14,8 +14,8 @@ def test(model, fetcher):
     val_loss = 0
     classes = fetcher.loader.dataset.classes
     num_classes = len(classes)
-    total_size = torch.Tensor(0)
-    true_size = torch.Tensor(0)
+    total_size = torch.Tensor([0])
+    true_size = torch.Tensor([0])
     tp = torch.zeros(num_classes)
     fp = torch.zeros(num_classes)
     fn = torch.zeros(num_classes)
@@ -32,7 +32,7 @@ def test(model, fetcher):
                            classes)
             eq = predicted.eq(targets)
             total_size += predicted.size(0)
-            true_size += eq.size()
+            true_size += eq.sum()
             for c_i, c in enumerate(classes):
                 indices = targets.eq(c_i)
                 positive = indices.sum().item()
@@ -55,7 +55,7 @@ def test(model, fetcher):
         dist.all_reduce(fp, op=dist.ReduceOp.SUM)
         dist.all_reduce(total_size, op=dist.ReduceOp.SUM)
         dist.all_reduce(true_size, op=dist.ReduceOp.SUM)
-        T, P, R, miou, F1 = compute_metrics(tp.cpu(), fn.cpu(), fp.cpu())
+    T, P, R, F1 = compute_metrics(tp.cpu(), fn.cpu(), fp.cpu())
     for c_i, c in enumerate(classes):
         print('cls: %8s, targets: %8d, pre: %8g, rec: %8g, F1: %8g' %
               (c, T[c_i], P[c_i], R[c_i], F1[c_i]))

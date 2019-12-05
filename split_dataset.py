@@ -22,7 +22,7 @@ def run(data_dir, train_rate=0.7, shuffle=True):
         names = os.listdir(cn)
         names = [name for name in names if os.path.splitext(name)[1] in IMG_EXT]
         names.sort()
-        names = [os.path.join(cn, name) for name in names]
+        names = [os.path.join(os.path.basename(cn), name) for name in names]
         img_names += names
     if shuffle:
         random.shuffle(img_names)
