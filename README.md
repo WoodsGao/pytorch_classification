@@ -38,12 +38,12 @@ Then execute `python3 split_dataset.py data/<custom>` . It splits the data into 
 
 ### Training
 
-    python3 train.py --data-dir data/<custom>
+    python3 train.py --data data/<custom>
 
 ### Distributed Training
 
 Run the following command in all nodes.Every node will save your weights
-    python3 train.py --data-dir data/<custom> -s <world-size> -r <rank> -i <tcp://master-server:port>
+    python3 train.py --data data/<custom> -s <world-size> -r <rank> -i <tcp://master-server:port>
 
 ### Testing
 
