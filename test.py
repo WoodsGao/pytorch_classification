@@ -19,31 +19,30 @@ def test(model, fetcher):
     tp = torch.zeros(num_classes)
     fp = torch.zeros(num_classes)
     fn = torch.zeros(num_classes)
-    with torch.no_grad():
-        pbar = tqdm(enumerate(fetcher), total=len(fetcher))
-        for idx, (inputs, targets) in pbar:
-            batch_idx = idx + 1
-            outputs = model(inputs)
-            loss = compute_loss(outputs, targets, model)
-            val_loss += loss.item()
-            predicted = outputs.max(1)[1]
-            if idx == 0:
-                show_batch('test_batch.png', inputs.cpu(), predicted.cpu(),
-                           classes)
-            eq = predicted.eq(targets)
-            total_size += predicted.size(0)
-            true_size += eq.sum()
-            for c_i, c in enumerate(classes):
-                indices = targets.eq(c_i)
-                positive = indices.sum().item()
-                tpi = eq[indices].sum().item()
-                fni = positive - tpi
-                fpi = predicted.eq(c_i).sum().item() - tpi
-                tp[c_i] += tpi
-                fn[c_i] += fni
-                fp[c_i] += fpi
-            pbar.set_description('loss: %8g, acc: %8g' %
-                                 (val_loss / batch_idx, true_size / total_size))
+    pbar = tqdm(enumerate(fetcher), total=len(fetcher))
+    for idx, (inputs, targets) in pbar:
+        batch_idx = idx + 1
+        outputs = model(inputs)
+        loss = compute_loss(outputs, targets, model)
+        val_loss += loss.item()
+        predicted = outputs.max(1)[1]
+        if idx == 0:
+            show_batch(inputs.cpu(), predicted.cpu(), classes)
+        eq = predicted.eq(targets)
+        total_size += predicted.size(0)
+        true_size += eq.sum()
+        for c_i, c in enumerate(classes):
+            indices = targets.eq(c_i)
+            positive = indices.sum().item()
+            tpi = eq[indices].sum().item()
+            fni = positive - tpi
+            fpi = predicted.eq(c_i).sum().item() - tpi
+            tp[c_i] += tpi
+            fn[c_i] += fni
+            fp[c_i] += fpi
+        pbar.set_description(
+            'loss: %8g, acc: %8g' %
+            (val_loss / batch_idx, true_size / total_size))
     if dist.is_initialized():
         tp = tp.to(device)
         fn = fn.to(device)
@@ -56,9 +55,18 @@ def test(model, fetcher):
         dist.all_reduce(total_size, op=dist.ReduceOp.SUM)
         dist.all_reduce(true_size, op=dist.ReduceOp.SUM)
     T, P, R, F1 = compute_metrics(tp.cpu(), fn.cpu(), fp.cpu())
-    for c_i, c in enumerate(classes):
-        print('cls: %8s, targets: %8d, pre: %8g, rec: %8g, F1: %8g' %
-              (c, T[c_i], P[c_i], R[c_i], F1[c_i]))
+    if len(classes) < 10:
+        for c_i, c in enumerate(classes):
+            print('cls: %8s, targets: %8d, pre: %8g, rec: %8g, F1: %8g' %
+                  (c, T[c_i], P[c_i], R[c_i], F1[c_i]))
+    else:
+        print('top error 5')
+        copy_P = P.clone()
+        for i in range(5):
+            c_i = copy_P.min(0)[1]
+            copy_P[c_i] = 1
+            print('cls: %8s, targets: %8d, pre: %8g, rec: %8g, F1: %8g' %
+                  (classes[ci], T[c_i], P[c_i], R[c_i], F1[c_i]))
     return true_size / total_size
 
 

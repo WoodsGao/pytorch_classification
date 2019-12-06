@@ -17,7 +17,7 @@ def compute_loss(outputs, targets, model=None):
     return loss
 
 
-def show_batch(save_path, inputs, targets, classes):
+def show_batch(inputs, targets, classes):
     imgs = inputs.clone()[:8]
     labels = targets.clone()[:8]
     imgs *= 255.
@@ -32,7 +32,7 @@ def show_batch(save_path, inputs, targets, classes):
 
     imgs = np.concatenate(out_imgs, 0)
     save_img = imgs
-    cv2.imwrite(save_path, save_img)
+    cv2.imwrite('batch.png', save_img)
 
 
 def compute_metrics(tp, fn, fp):
