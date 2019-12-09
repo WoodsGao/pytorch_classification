@@ -30,4 +30,5 @@ if __name__ == "__main__":
     model = EfficientNetGCM(8)
     a = torch.ones([2, 3, 224, 224])
     b = model(a)
+    b.mean().backward()
     print(b.shape)
