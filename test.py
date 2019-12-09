@@ -66,7 +66,7 @@ def test(model, fetcher):
             c_i = copy_P.min(0)[1]
             copy_P[c_i] = 1
             print('cls: %8s, targets: %8d, pre: %8g, rec: %8g, F1: %8g' %
-                  (classes[ci], T[c_i], P[c_i], R[c_i], F1[c_i]))
+                  (classes[c_i], T[c_i], P[c_i], R[c_i], F1[c_i]))
     return true_size / total_size
 
 
