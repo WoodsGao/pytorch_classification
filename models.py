@@ -6,7 +6,7 @@ from utils.modules.backbones import BasicModel, EfficientNet
 
 # gap classification model
 class EfficientNetGCM(BasicModel):
-    def __init__(self, num_classes, model_id=2):
+    def __init__(self, num_classes, model_id=0):
         super(EfficientNetGCM, self).__init__()
         # full pre-activation
         self.backbone = EfficientNet(model_id)

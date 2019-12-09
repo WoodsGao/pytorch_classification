@@ -31,14 +31,14 @@ def train(data_dir,
         train_dir,
         img_size=img_size,
         augments=augments,
-        skip_init=True,
+        # skip_init=True,
     )
     if not notest:
         val_data = ClassificationDataset(
             val_dir,
             img_size=img_size,
             augments={},
-            skip_init=True,
+            # skip_init=True,
         )
     if dist.is_initialized():
         dist.barrier()
@@ -91,9 +91,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', type=str, default='data/voc')
     parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('--img-size', type=int, default=512)
-    parser.add_argument('--batch-size', type=int, default=4)
-    parser.add_argument('--accumulate', type=int, default=8)
+    parser.add_argument('--img-size', type=int, default=224)
+    parser.add_argument('--batch-size', type=int, default=32)
+    parser.add_argument('--accumulate', type=int, default=2)
     parser.add_argument('--num-workers', type=int, default=4)
     parser.add_argument('--lr', type=float, default=0)
     parser.add_argument('--adam', action='store_true')
