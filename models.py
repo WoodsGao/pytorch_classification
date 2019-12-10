@@ -9,12 +9,11 @@ class EfficientNetGCM(BasicModel):
     def __init__(self, num_classes, model_id=0):
         super(EfficientNetGCM, self).__init__()
         # full pre-activation
-        # self.backbone = EfficientNet(model_id)
-        self.backbone = ResNet()
+        self.backbone = EfficientNet(model_id)
         self.fc = nn.Sequential(
-            # CNS(self.backbone.out_channels[-1], self.backbone.out_channels[-1] * 4, 1),
+            CNS(self.backbone.out_channels[-1], self.backbone.out_channels[-1] * 4, 1),
             nn.AdaptiveAvgPool2d((1, 1)),
-            nn.Conv2d(1024, num_classes, 1),
+            nn.Conv2d(self.backbone.out_channels[-1] * 4, num_classes, 1),
         )
         self.init()
         self.num_classes = num_classes
