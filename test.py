@@ -67,7 +67,7 @@ def test(model, fetcher):
             copy_P[c_i] = 1
             print('cls: %8s, targets: %8d, pre: %8g, rec: %8g, F1: %8g' %
                   (classes[c_i], T[c_i], P[c_i], R[c_i], F1[c_i]))
-    return true_size / total_size
+    return true_size.item() / total_size.item()
 
 
 if __name__ == "__main__":
