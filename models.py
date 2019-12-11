@@ -19,7 +19,11 @@ class EfficientNetGCM(BasicModel):
         self.num_classes = num_classes
 
     def forward(self, x):
-        x = self.backbone(x)
+        x = self.backbone.block1(x)
+        x = self.backbone.block2(x)
+        x = self.backbone.block3(x)
+        x = self.backbone.block4(x)
+        x = self.backbone.block5(x)
         x = self.fc(x)
         x = torch.flatten(x, 1)
         return x
