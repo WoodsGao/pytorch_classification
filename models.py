@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-from utils.modules.nn import CNS
-from utils.modules.backbones import BasicModel, EfficientNet, ResNet
+from pytorch_modules.nn import CNS
+from pytorch_modules.backbones import BasicModel, EfficientNet, ResNet
 
 
 # gap classification model

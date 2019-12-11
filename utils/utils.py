@@ -3,7 +3,7 @@ import cv2
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .modules.nn import FocalBCELoss
+from pytorch_modules.nn import FocalBCELoss
 
 CE = nn.CrossEntropyLoss()
 BCE = nn.BCELoss()
