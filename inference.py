@@ -2,7 +2,7 @@ import os
 import argparse
 from tqdm import tqdm
 import torch
-from models import EfficientNetGCM
+from utils.models import EfficientNetGCM
 from pytorch_modules.utils import device, IMG_EXT
 import cv2
 

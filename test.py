@@ -1,5 +1,5 @@
 import torch
-from models import EfficientNetGCM
+from utils.models import EfficientNetGCM
 import torch.distributed as dist
 from torch.utils.data import DataLoader
 from pytorch_modules.datasets import ClassificationDataset

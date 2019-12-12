@@ -1,5 +1,5 @@
 import torch
-from models import EfficientNetGCM
+from utils.models import EfficientNetGCM
 import cv2
 
 dummy_input = torch.rand([1, 3, 64, 64])
