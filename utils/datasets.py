@@ -56,11 +56,7 @@ TRAIN_AUGS = ia.SomeOf(
 
 
 class ClsDataset(torch.utils.data.Dataset):
-    def __init__(self,
-                 path,
-                 img_size=224,
-                 augments=None,
-                 multi_scale=False):
+    def __init__(self, path, img_size=224, augments=None, multi_scale=False):
         super(ClsDataset, self).__init__()
         self.path = path
         if isinstance(img_size, int):
@@ -80,20 +76,16 @@ class ClsDataset(torch.utils.data.Dataset):
         data_dir = osp.dirname(self.path)
         class_names = [n for n in os.listdir(data_dir)]
         class_names = [
-            cn for cn in class_names
-            if osp.isdir(osp.join(data_dir, cn))
+            cn for cn in class_names if osp.isdir(osp.join(data_dir, cn))
         ]
         class_names.sort()
         self.classes = class_names
         with open(self.path, 'r') as f:
             names = [n for n in f.read().split('\n') if n]
-        self.data = [
-            [
-                osp.join(data_dir, name),
-                self.classes.index(osp.basename(osp.dirname(name)))
-            ] for name in names
-            if osp.splitext(name)[1] in IMG_EXT
-        ]
+        self.data = [[
+            osp.join(data_dir, name),
+            self.classes.index(osp.basename(osp.dirname(name)))
+        ] for name in names if osp.splitext(name)[1] in IMG_EXT]
 
     def get_item(self, idx):
         img = cv2.imread(self.data[idx][0])
@@ -110,13 +102,6 @@ class ClsDataset(torch.utils.data.Dataset):
         img = np.ascontiguousarray(img)
 
         return torch.ByteTensor(img), self.data[idx][1]
-
-    @staticmethod
-    def post_fetch_fn(batch):
-        imgs, labels = batch
-        imgs = imgs.float()
-        imgs /= 255.
-        return (imgs, labels)
 
     def __len__(self):
         return len(self.data)
