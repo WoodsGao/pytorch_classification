@@ -1,47 +1,39 @@
 import os
+import os.path as osp
 import argparse
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader, DistributedSampler
 import torch.distributed as dist
-from utils.models import EfficientNetGCM
-from pytorch_modules.datasets import ClassificationDataset
+from pytorch_modules.backbones.efficientnet import efficientnet
+from pytorch_modules.backbones.resnet import resnet18, resnext50_32x4d, resnext101_32x8d
 from pytorch_modules.utils import Trainer, Fetcher
+from utils.datasets import ClsDataset, TRAIN_AUGS
 from utils.utils import compute_loss
 from test import test
 
 
 def train(data_dir,
           epochs=100,
-          img_size=224,
+          img_size=(224, 224),
           batch_size=8,
           accumulate=2,
           lr=1e-3,
           adam=False,
           weights='',
           num_workers=0,
-          augments={},
           multi_scale=False,
           notest=False,
           mixed_precision=False,
           nosave=False):
     os.makedirs('weights', exist_ok=True)
-    train_dir = os.path.join(data_dir, 'train.txt')
-    val_dir = os.path.join(data_dir, 'valid.txt')
-    train_data = ClassificationDataset(
-        train_dir,
-        img_size=img_size,
-        augments=augments,
-        # skip_init=True,
-    )
-    if not notest:
-        val_data = ClassificationDataset(
-            val_dir,
-            img_size=img_size,
-            augments={},
-            # skip_init=True,
-        )
-    if dist.is_initialized():
-        dist.barrier()
+    train_dir = osp.join(data_dir, 'train.txt')
+    val_dir = osp.join(data_dir, 'valid.txt')
+
+    train_data = ClsDataset(train_dir,
+                            img_size=img_size,
+                            augments=TRAIN_AUGS,
+                            multi_scale=multi_scale)
     train_loader = DataLoader(
         train_data,
         batch_size=batch_size,
@@ -54,6 +46,7 @@ def train(data_dir,
     )
     train_fetcher = Fetcher(train_loader, train_data.post_fetch_fn)
     if not notest:
+        val_data = ClsDataset(val_dir, img_size=img_size)
         val_loader = DataLoader(
             val_data,
             batch_size=batch_size,
@@ -66,7 +59,16 @@ def train(data_dir,
         )
         val_fetcher = Fetcher(val_loader, post_fetch_fn=val_data.post_fetch_fn)
 
-    model = EfficientNetGCM(1000)
+    if not weights:
+        # model = efficientnet(0, pretrained=True)
+        # model._fc = nn.Linear(1280, len(train_data.classes))
+        model = resnet18(pretrained=True)
+        model.fc = nn.Linear(512, len(train_data.classes))
+    else:
+        model = resnet18(num_classes=len(train_data.classes))
+
+    if dist.is_initialized():
+        dist.barrier()
     trainer = Trainer(model, train_fetcher, compute_loss, weights, accumulate,
                       adam, lr, mixed_precision)
     while trainer.epoch < epochs:
@@ -75,13 +77,12 @@ def train(data_dir,
         if trainer.epoch % 10 == 0:
             save_path_list.append('bak%d.pt' % trainer.epoch)
         if not notest:
-            with torch.no_grad():
-                metrics = test(trainer.model, val_fetcher)
+            metrics = test(trainer.model, val_fetcher)
             if metrics > trainer.metrics:
                 trainer.metrics = metrics
                 save_path_list.append('best.pt')
                 print('save best, metrics: %g...' % metrics)
-        save_path_list = [os.path.join('weights', p) for p in save_path_list]
+        save_path_list = [osp.join('weights', p) for p in save_path_list]
         if nosave:
             continue
         trainer.save(save_path_list)
@@ -91,7 +92,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', type=str, default='data/voc')
     parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('--img-size', type=int, default=224)
+    parser.add_argument('--img-size', type=str, default='224')
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--accumulate', type=int, default=2)
     parser.add_argument('--num-workers', type=int, default=4)
@@ -121,19 +122,17 @@ if __name__ == "__main__":
                         type=int,
                         help='Rank of the current process.',
                         default=0)
-    augments = {
-        'hsv': 0.1,
-        'blur': 0.1,
-        'pepper': 0.1,
-        'shear': 0.1,
-        'translate': 0.1,
-        'rotate': 0.1,
-        'flip': 0.1,
-        'scale': 0.1,
-        'noise': 0.1,
-    }
+    parser.add_argument('--local-rank', '--local_rank', type=int, default=0)
     opt = parser.parse_args()
     print(opt)
+
+    img_size = opt.img_size.split(',')
+    assert len(img_size) in [1, 2]
+    if len(img_size) == 1:
+        img_size = [int(img_size[0])] * 2
+    else:
+        img_size = [int(x) for x in img_size]
+
     if dist.is_available() and opt.world_size > 1:
         dist.init_process_group(backend=opt.backend,
                                 init_method=opt.init_method,
@@ -142,18 +141,17 @@ if __name__ == "__main__":
     train(
         data_dir=opt.data,
         epochs=opt.epochs,
-        img_size=opt.img_size,
+        img_size=tuple(img_size),
         batch_size=opt.batch_size,
         accumulate=opt.accumulate,
         lr=opt.lr,
         weights=opt.weights,
         num_workers=opt.num_workers,
-        augments=augments,
         multi_scale=opt.multi_scale,
         notest=opt.notest,
         adam=opt.adam,
         mixed_precision=opt.mp,
-        nosave=opt.nosave,
+        nosave=opt.nosave or (opt.local_rank > 0),
     )
     if dist.is_initialized():
         dist.destroy_process_group()

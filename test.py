@@ -1,14 +1,16 @@
 import torch
-from utils.models import EfficientNetGCM
 import torch.distributed as dist
 from torch.utils.data import DataLoader
-from pytorch_modules.datasets import ClassificationDataset
-from pytorch_modules.utils import device
+from pytorch_modules.utils import device, Fetcher
+from pytorch_modules.backbones.efficientnet import efficientnet
+from pytorch_modules.backbones.resnet import resnet18, resnext50_32x4d, resnext101_32x8d
 from utils.utils import compute_loss, show_batch, compute_metrics
+from utils.datasets import ClsDataset
 from tqdm import tqdm
 import argparse
 
 
+@torch.no_grad()
 def test(model, fetcher):
     model.eval()
     val_loss = 0
@@ -73,23 +75,30 @@ def test(model, fetcher):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--val-list', type=str, default='data/lsr/valid.txt')
-    parser.add_argument('--img-size', type=int, default=224)
-    parser.add_argument('--batch-size', type=int, default=32)
+    parser.add_argument('--img-size', type=str, default='224')
+    parser.add_argument('--batch-size', type=int, default=4)
     parser.add_argument('--weights', type=str, default='')
-    parser.add_argument('--num-workers', type=int, default=0)
+    parser.add_argument('--num-workers', type=int, default=4)
     opt = parser.parse_args()
 
-    val_data = ClassificationDataset(opt.val_list, img_size=opt.img_size)
+    img_size = opt.img_size.split(',')
+    assert len(img_size) in [1, 2]
+    if len(img_size) == 1:
+        img_size = [int(img_size[0])] * 2
+    else:
+        img_size = [int(x) for x in img_size]
+
+    val_data = ClsDataset(opt.val_list, img_size=tuple(img_size))
     val_loader = DataLoader(
         val_data,
         batch_size=opt.batch_size,
-        shuffle=True,
+        pin_memory=True,
         num_workers=opt.num_workers,
     )
-    model = EfficientNetGCM(20)
-    model = model.to(device)
+    val_fetcher = Fetcher(val_loader, post_fetch_fn=val_data.post_fetch_fn)
+    model = DeepLabV3Plus(len(val_data.classes))
     if opt.weights:
-        state_dict = torch.load(opt.weights, map_location=device)
+        state_dict = torch.load(opt.weights, map_location='cpu')
         model.load_state_dict(state_dict['model'])
-    val_loss, prec = test(model, val_loader)
-    print('val_loss: %8g   prec: %8g' % (val_loss, prec))
+    metrics = test(model, val_fetcher)
+    print('metrics: %8g' % (metrics))

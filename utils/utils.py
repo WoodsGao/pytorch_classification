@@ -26,8 +26,8 @@ def show_batch(inputs, targets, classes):
     for bi, (img, c) in enumerate(zip(imgs, labels)):
         img = cv2.resize(img, (128, 128))
         if c < len(classes):
-            cv2.putText(img, classes[c.item()], (0, 30), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0, 0, 255), 1)
+            cv2.putText(img, classes[c.item()], (0, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
         out_imgs.append(img)
 
     imgs = np.concatenate(out_imgs, 0)

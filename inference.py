@@ -1,46 +1,40 @@
 import os
+import os.path as osp
 import argparse
 from tqdm import tqdm
 import torch
-from utils.models import EfficientNetGCM
+from pytorch_modules.backbones.efficientnet import efficientnet
+from pytorch_modules.backbones.resnet import resnet18, resnext50_32x4d, resnext101_32x8d
 from pytorch_modules.utils import device, IMG_EXT
+from utils.inference import inference
 import cv2
 
 
-def inference(img_dir='data/samples',
-              img_size=224,
-              output_path='outputs.csv',
-              weights='weights/best.pt'):
-    outputs = ''
-    model = EfficientNetGCM(20)
-    model = model.to(device)
-    state_dict = torch.load(weights, map_location=device)
+def run(img_dir='data/samples',
+        img_size=(224, 224),
+        num_classes=10,
+        output_path='outputs.txt',
+        weights='weights/best.pt'):
+    outputs = []
+    model = resnet18(num_classes)
+    state_dict = torch.load(weights, map_location='cpu')
     model.load_state_dict(state_dict['model'])
+    model = model.to(device)
     model.eval()
-    names = [
-        n for n in os.listdir(img_dir)
-        if os.path.splitext(n)[1] in IMG_EXT
-    ]
-    with torch.no_grad():
-        for name in tqdm(names):
-            path = os.path.join(img_dir, name)
-            img = cv2.imread(path)
-            h = (img.shape[0] / max(img.shape[:2]) * img_size) // 32
-            w = (img.shape[1] / max(img.shape[:2]) * img_size) // 32
-            img = cv2.resize(img, (int(w * 32), int(h * 32)))
-            img = img[:, :, ::-1]
-            img = img.transpose(2, 0, 1)
-            img = torch.FloatTensor([img], device=device) / 255.
-            output = model(img).softmax(1).max(1)
-            outputs += '%s, %5lf, %d\n' % (path, output[0], output[1])
+    names = [n for n in os.listdir(img_dir) if osp.splitext(n)[1] in IMG_EXT]
+    for name in tqdm(names):
+        path = osp.join(img_dir, name)
+        img = cv2.imread(path)
+        idx = inference(model, [img], img_size)[0]
+        outputs.append('%s %d' % (path, idx))
     with open(output_path, 'w') as f:
-        f.write(outputs)
+        f.write('\n'.join(outputs))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--img-dir', type=str, default='data/samples')
-    parser.add_argument('--output-path', type=str, default='outputs.csv')
+    parser.add_argument('--output-path', type=str, default='outputs.txt')
     parser.add_argument('--img-size', type=int, default=224)
     parser.add_argument('--weights', type=str, default='weights/best.pt')
     opt = parser.parse_args()

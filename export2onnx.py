@@ -1,9 +1,9 @@
 import torch
-from utils.models import EfficientNetGCM
+from utils.models import EfficientNet
 import cv2
 
 dummy_input = torch.rand([1, 3, 64, 64])
-model = EfficientNetGCM(20)
+model = EfficientNet(20)
 weights = torch.load('best.pt', map_location='cpu')['model']
 model.load_state_dict(weights)
 model.eval()
