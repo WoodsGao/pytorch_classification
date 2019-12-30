@@ -122,7 +122,6 @@ if __name__ == "__main__":
                         type=int,
                         help='Rank of the current process.',
                         default=0)
-    parser.add_argument('--local-rank', '--local_rank', type=int, default=0)
     opt = parser.parse_args()
     print(opt)
 
