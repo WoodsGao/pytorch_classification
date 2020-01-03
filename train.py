@@ -5,8 +5,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, DistributedSampler
 import torch.distributed as dist
-from pytorch_modules.backbones.efficientnet import efficientnet
-from pytorch_modules.backbones.resnet import resnet18, resnext50_32x4d, resnext101_32x8d
+from pytorch_modules.backbones import efficientnet, resnet18, resnext50_32x4d, resnext101_32x8d
 from pytorch_modules.utils import Trainer, Fetcher
 from utils.datasets import ClsDataset, TRAIN_AUGS
 from utils.utils import compute_loss

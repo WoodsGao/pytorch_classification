@@ -2,8 +2,7 @@ import torch
 import torch.distributed as dist
 from torch.utils.data import DataLoader
 from pytorch_modules.utils import device, Fetcher
-from pytorch_modules.backbones.efficientnet import efficientnet
-from pytorch_modules.backbones.resnet import resnet18, resnext50_32x4d, resnext101_32x8d
+from pytorch_modules.backbones import efficientnet, resnet18, resnext50_32x4d, resnext101_32x8d
 from utils.utils import compute_loss, show_batch, compute_metrics
 from utils.datasets import ClsDataset
 from tqdm import tqdm

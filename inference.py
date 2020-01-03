@@ -3,8 +3,7 @@ import os.path as osp
 import argparse
 from tqdm import tqdm
 import torch
-from pytorch_modules.backbones.efficientnet import efficientnet
-from pytorch_modules.backbones.resnet import resnet18, resnext50_32x4d, resnext101_32x8d
+from pytorch_modules.backbones import efficientnet, resnet18, resnext50_32x4d, resnext101_32x8d
 from pytorch_modules.utils import device, IMG_EXT
 from utils.inference import inference
 import cv2
