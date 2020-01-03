@@ -38,4 +38,4 @@ if __name__ == "__main__":
     parser.add_argument('--img-size', type=int, default=224)
     parser.add_argument('--weights', type=str, default='weights/best.pt')
     opt = parser.parse_args()
-    inference(opt.img_dir, opt.img_size, opt.output_path, opt.weights)
+    run(opt.img_dir, opt.img_size, opt.output_path, opt.weights)
