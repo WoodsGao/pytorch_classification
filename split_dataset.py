@@ -38,4 +38,4 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('path', default='./voc')
     args = parser.parse_args()
-    run(args.path)
+    run(args.path, 0.9)

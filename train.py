@@ -69,7 +69,7 @@ def train(data_dir,
     if dist.is_initialized():
         dist.barrier()
     trainer = Trainer(model, train_fetcher, compute_loss, weights, accumulate,
-                      adam, lr, mixed_precision)
+                      adam, lr, mixed_precision, checkpoint=False)
     while trainer.epoch < epochs:
         trainer.run_epoch()
         save_path_list = ['last.pt']

@@ -11,5 +11,5 @@ def inference(model, imgs, img_size=(64, 64)):
             np.float32) / 255. for img in imgs
     ]
     imgs = torch.FloatTensor(imgs).to(device)
-    preds = model(imgs).softmax(1).cpu().numpy().argmax(1).tolist()
+    preds = model(imgs).softmax(1).cpu().numpy().argmax(1)
     return preds
