@@ -21,8 +21,12 @@ def compute_loss(outputs, targets, model=None):
 def show_batch(inputs, targets, classes):
     imgs = inputs.clone()[:8]
     labels = targets.clone()[:8]
-    imgs *= 255.
-    imgs = imgs.clamp(0, 255).permute(0, 2, 3, 1).byte().numpy()[:, :, :, ::-1]
+    imgs *= torch.FloatTensor([58.395, 57.12,
+                               57.375]).reshape(1, 3, 1, 1).to(imgs.device)
+    imgs += torch.FloatTensor([123.675, 116.28,
+                               103.53]).reshape(1, 3, 1, 1).to(imgs.device)
+    imgs = imgs.clamp(0, 255).permute(0, 2, 3,
+                                      1).byte().cpu().numpy()[..., ::-1]
     out_imgs = []
     for bi, (img, c) in enumerate(zip(imgs, labels)):
         img = cv2.resize(img, (128, 128))
