@@ -52,7 +52,7 @@ Then execute `python3 split_dataset.py data/<custom>` . It splits the data into 
 
 ### Inference
 
-    python3 inference.py data/samples
+    python3 inference.py data/samples output.csv --weights <weights path>
 
 ### Export to caffe model
 
