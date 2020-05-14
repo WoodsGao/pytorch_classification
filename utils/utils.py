@@ -1,8 +1,9 @@
-import numpy as np
 import cv2
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from pytorch_modules.nn import FocalBCELoss
 
 CE = nn.CrossEntropyLoss()

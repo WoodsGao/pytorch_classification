@@ -1,15 +1,17 @@
+import argparse
 import os
 import os.path as osp
-import argparse
-import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader, DistributedSampler
-import torch.distributed as dist
-from pytorch_modules.backbones import efficientnet, resnet18, resnext50_32x4d, resnext101_32x8d
-from pytorch_modules.utils import Trainer, Fetcher
-from utils.datasets import ClsDataset, TRAIN_AUGS
-from utils.utils import compute_loss
+import sys
 from test import test
+
+import torch
+import torch.distributed as dist
+from torch.utils.data import DataLoader, DistributedSampler
+
+from models import ResNet18
+from pytorch_modules.utils import Fetcher, Trainer
+from utils.datasets import ClsDataset
+from utils.utils import compute_loss
 
 
 def train(data_dir,
@@ -19,20 +21,21 @@ def train(data_dir,
           accumulate=2,
           lr=1e-3,
           adam=False,
+          resume=False,
           weights='',
           num_workers=0,
           multi_scale=False,
-          notest=False,
+          rect=False,
           mixed_precision=False,
+          notest=False,
           nosave=False):
-    os.makedirs('weights', exist_ok=True)
     train_dir = osp.join(data_dir, 'train.txt')
     val_dir = osp.join(data_dir, 'valid.txt')
 
     train_data = ClsDataset(train_dir,
                             img_size=img_size,
-                            augments=TRAIN_AUGS,
-                            multi_scale=multi_scale)
+                            multi_scale=multi_scale,
+                            rect=rect)
     train_loader = DataLoader(
         train_data,
         batch_size=batch_size,
@@ -45,7 +48,10 @@ def train(data_dir,
     )
     train_fetcher = Fetcher(train_loader, train_data.post_fetch_fn)
     if not notest:
-        val_data = ClsDataset(val_dir, img_size=img_size)
+        val_data = ClsDataset(val_dir,
+                              img_size=img_size,
+                              augments=None,
+                              rect=rect)
         val_loader = DataLoader(
             val_data,
             batch_size=batch_size,
@@ -58,73 +64,69 @@ def train(data_dir,
         )
         val_fetcher = Fetcher(val_loader, post_fetch_fn=val_data.post_fetch_fn)
 
-    if not weights:
-        # model = efficientnet(0, pretrained=True)
-        # model._fc = nn.Linear(1280, len(train_data.classes))
-        model = resnet18(pretrained=True)
-        model.fc = nn.Linear(512, len(train_data.classes))
-    else:
-        model = resnet18(num_classes=len(train_data.classes))
+    model = ResNet18(num_classes=len(train_data.classes))
 
-    if dist.is_initialized():
-        dist.barrier()
-    trainer = Trainer(model, train_fetcher, compute_loss, weights, accumulate,
-                      adam, lr, mixed_precision)
+    trainer = Trainer(model,
+                      train_fetcher,
+                      loss_fn=compute_loss,
+                      workdir='weights',
+                      accumulate=accumulate,
+                      adam=adam,
+                      lr=lr,
+                      weights=weights,
+                      resume=resume,
+                      mixed_precision=mixed_precision)
     while trainer.epoch < epochs:
-        trainer.run_epoch()
-        save_path_list = ['last.pt']
-        if trainer.epoch % 10 == 0:
-            save_path_list.append('bak%d.pt' % trainer.epoch)
+        trainer.step()
+        best = False
         if not notest:
             metrics = test(trainer.model, val_fetcher)
             if metrics > trainer.metrics:
+                best = True
+                print('save best, acc: %g' % metrics)
                 trainer.metrics = metrics
-                save_path_list.append('best.pt')
-                print('save best, metrics: %g...' % metrics)
-        save_path_list = [osp.join('weights', p) for p in save_path_list]
-        if nosave:
-            continue
-        trainer.save(save_path_list)
+        if not nosave:
+            trainer.save(best)
+
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data', type=str, default='data/voc')
+    parser.add_argument('data', type=str, default='data/voc')
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--img-size', type=str, default='224')
-    parser.add_argument('--batch-size', type=int, default=32)
-    parser.add_argument('--accumulate', type=int, default=2)
-    parser.add_argument('--num-workers', type=int, default=4)
-    parser.add_argument('--lr', type=float, default=0)
+    parser.add_argument('-bs', '--batch-size', type=int, default=64)
+    parser.add_argument('-a', '--accumulate', type=int, default=1)
+    parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--adam', action='store_true')
-    parser.add_argument('--mp', action='store_true', help='mixed precision')
-    parser.add_argument('--notest', action='store_true')
+    parser.add_argument('--resume', action='store_true')
     parser.add_argument('--weights', type=str, default='')
+    parser.add_argument('--num-workers', type=int, default=4)
     parser.add_argument('--multi-scale', action='store_true')
+    parser.add_argument('--rect', action='store_true')
+    parser.add_argument('-mp',
+                        '--mix_precision',
+                        action='store_true',
+                        help='mixed precision')
+    parser.add_argument('--notest', action='store_true')
     parser.add_argument('--nosave', action='store_true')
-    parser.add_argument('--backend',
-                        type=str,
-                        default='nccl',
-                        help='Name of the backend to use.')
-    parser.add_argument('-i',
-                        '--init-method',
-                        type=str,
-                        default='tcp://127.0.0.1:23456',
-                        help='URL specifying how to initialize the package.')
-    parser.add_argument('-s',
-                        '--world-size',
-                        type=int,
-                        help='Number of processes participating in the job.',
-                        default=1)
-    parser.add_argument('-r',
-                        '--rank',
-                        type=int,
-                        help='Rank of the current process.',
-                        default=0)
+    parser.add_argument('--backend', type=str, default='nccl')
     parser.add_argument('--local-rank', '--local_rank', type=int, default=0)
     opt = parser.parse_args()
-    print(opt)
 
+    if torch.distributed.is_available() and os.environ.get('WORLD_SIZE'):
+        torch.distributed.init_process_group(backend=opt.backend,
+                                             init_method='env://',
+                                             world_size=int(
+                                                 os.environ['WORLD_SIZE']),
+                                             rank=int(os.environ['RANK']))
+    if torch.cuda.is_available():
+        torch.cuda.set_device(opt.local_rank)
+    if 'LOCAL_RANK' not in os.environ:
+        os.environ['LOCAL_RANK'] = str(opt.local_rank)
+    if opt.local_rank > 0:
+        sys.stdout = open(os.devnull, 'w')
+    print(opt)
     img_size = opt.img_size.split(',')
     assert len(img_size) in [1, 2]
     if len(img_size) == 1:
@@ -132,25 +134,20 @@ if __name__ == "__main__":
     else:
         img_size = [int(x) for x in img_size]
 
-    if dist.is_available() and opt.world_size > 1:
-        dist.init_process_group(backend=opt.backend,
-                                init_method=opt.init_method,
-                                world_size=opt.world_size,
-                                rank=opt.rank)
-    train(
-        data_dir=opt.data,
-        epochs=opt.epochs,
-        img_size=tuple(img_size),
-        batch_size=opt.batch_size,
-        accumulate=opt.accumulate,
-        lr=opt.lr,
-        weights=opt.weights,
-        num_workers=opt.num_workers,
-        multi_scale=opt.multi_scale,
-        notest=opt.notest,
-        adam=opt.adam,
-        mixed_precision=opt.mp,
-        nosave=opt.nosave or (opt.local_rank > 0),
-    )
+    train(data_dir=opt.data,
+          epochs=opt.epochs,
+          img_size=img_size,
+          batch_size=opt.batch_size,
+          accumulate=opt.accumulate,
+          lr=opt.lr,
+          adam=opt.adam,
+          resume=opt.resume,
+          weights=opt.weights,
+          num_workers=opt.num_workers,
+          multi_scale=opt.multi_scale,
+          rect=opt.rect,
+          mixed_precision=opt.mix_precision,
+          notest=opt.notest,
+          nosave=opt.nosave)
     if dist.is_initialized():
         dist.destroy_process_group()

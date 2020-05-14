@@ -56,7 +56,7 @@ TRAIN_AUGS = ia.SomeOf(
 
 
 class ClsDataset(torch.utils.data.Dataset):
-    def __init__(self, path, img_size=224, augments=None, multi_scale=False):
+    def __init__(self, path, img_size=224, augments=TRAIN_AUGS, multi_scale=False, rect=False):
         super(ClsDataset, self).__init__()
         self.path = path
         if isinstance(img_size, int):
@@ -64,7 +64,7 @@ class ClsDataset(torch.utils.data.Dataset):
         assert len(img_size) == 2
         self.img_size = img_size
         self.multi_scale = multi_scale
-        self.resize = ia.Resize({"height": img_size[1], "width": img_size[0]})
+        self.rect = rect
         self.augments = augments
         self.data = []
         self.classes = []
@@ -90,8 +90,24 @@ class ClsDataset(torch.utils.data.Dataset):
     def get_item(self, idx):
         img = cv2.imread(self.data[idx][0])
         img = img[:, :, ::-1]
+        h, w, c = img.shape
 
-        resize = self.resize.to_deterministic()
+        if self.rect:
+            scale = min(self.img_size[0] / w, self.img_size[1] / h)
+            resize = ia.Sequential([
+                ia.Resize({
+                    'width': int(w * scale),
+                    'height': int(h * scale)
+                }),
+                ia.PadToFixedSize(*self.img_size,
+                                  pad_cval=[123.675, 116.28, 103.53],
+                                  position='center')
+            ])
+        else:
+            resize = ia.Resize({
+                'width': self.img_size[0],
+                'height': self.img_size[1]
+            })
         img = resize.augment_image(img)
         # augment
         if self.augments is not None:
@@ -112,12 +128,15 @@ class ClsDataset(torch.utils.data.Dataset):
     def post_fetch_fn(self, batch):
         imgs, labels = batch
         imgs = imgs.float()
-        imgs /= 255.
+        imgs -= torch.FloatTensor([123.675, 116.28,
+                                   103.53]).reshape(1, 3, 1, 1).to(imgs.device)
+        imgs /= torch.FloatTensor([58.395, 57.12,
+                                   57.375]).reshape(1, 3, 1, 1).to(imgs.device)
         if self.multi_scale:
             h = imgs.size(2)
             w = imgs.size(3)
             scale = random.uniform(0.7, 1.5)
-            h = int(h * scale / 16) * 16
-            w = int(w * scale / 16) * 16
+            h = int(h * scale / 32) * 32
+            w = int(w * scale / 32) * 32
             imgs = F.interpolate(imgs, (h, w))
         return (imgs, labels.long())

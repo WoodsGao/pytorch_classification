@@ -1,12 +1,14 @@
+import argparse
+
 import torch
 import torch.distributed as dist
 from torch.utils.data import DataLoader
-from pytorch_modules.utils import device, Fetcher
-from pytorch_modules.backbones import efficientnet, resnet18, resnext50_32x4d, resnext101_32x8d
-from utils.utils import compute_loss, show_batch, compute_metrics
-from utils.datasets import ClsDataset
 from tqdm import tqdm
-import argparse
+
+from models import ResNet18
+from pytorch_modules.utils import Fetcher, device
+from utils.datasets import ClsDataset
+from utils.utils import compute_loss, compute_metrics, show_batch
 
 
 @torch.no_grad()
@@ -41,9 +43,8 @@ def test(model, fetcher):
             tp[c_i] += tpi
             fn[c_i] += fni
             fp[c_i] += fpi
-        pbar.set_description(
-            'loss: %8g, acc: %8g' %
-            (val_loss / batch_idx, true_size / total_size))
+        pbar.set_description('loss: %8g, acc: %8g' %
+                             (val_loss / batch_idx, true_size / total_size))
     if dist.is_initialized():
         tp = tp.to(device)
         fn = fn.to(device)
@@ -73,11 +74,14 @@ def test(model, fetcher):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--val-list', type=str, default='data/lsr/valid.txt')
-    parser.add_argument('--img-size', type=str, default='224')
-    parser.add_argument('--batch-size', type=int, default=4)
+    parser.add_argument('val', type=str)
     parser.add_argument('--weights', type=str, default='')
+    parser.add_argument('--rect', action='store_true')
+    parser.add_argument('--img-size', type=str, default='224')
+    parser.add_argument('-bs', '--batch-size', type=int, default=64)
+    parser.add_argument('-a', '--accumulate', type=int, default=1)
     parser.add_argument('--num-workers', type=int, default=4)
+
     opt = parser.parse_args()
 
     img_size = opt.img_size.split(',')
@@ -87,7 +91,10 @@ if __name__ == "__main__":
     else:
         img_size = [int(x) for x in img_size]
 
-    val_data = ClsDataset(opt.val_list, img_size=tuple(img_size))
+    val_data = ClsDataset(opt.val,
+                          img_size=img_size,
+                          augments=None,
+                          rect=opt.rect)
     val_loader = DataLoader(
         val_data,
         batch_size=opt.batch_size,
@@ -95,7 +102,8 @@ if __name__ == "__main__":
         num_workers=opt.num_workers,
     )
     val_fetcher = Fetcher(val_loader, post_fetch_fn=val_data.post_fetch_fn)
-    model = DeepLabV3Plus(len(val_data.classes))
+    model = ResNet18(len(val_data.classes))
+    model = model.to(device)
     if opt.weights:
         state_dict = torch.load(opt.weights, map_location='cpu')
         model.load_state_dict(state_dict['model'])

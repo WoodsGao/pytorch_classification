@@ -1,7 +1,8 @@
+import argparse
 import os
 import os.path as osp
 import random
-import argparse
+
 from pytorch_modules.utils import IMG_EXT
 
 

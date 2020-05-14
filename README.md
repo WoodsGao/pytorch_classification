@@ -2,14 +2,16 @@
 
 ## Introduction
 
-Implementation of some classification models with pytorch, including SENet, ResNet, DenseNet, etc.
+Implementation of some classification models with pytorch, including ResNet, etc.
 
 ## Features
 
  - Advanced neural network models
  - Flexible and efficient toolkit(See [woodsgao/pytorch_modules](https://github.com/woodsgao/pytorch_modules))
- - Online data augmenting(See [woodsgao/image_augments](https://github.com/woodsgao/image_augments))
+ - Online data augmenting(By imgaug)
  - Mixed precision training(If you have already installed [apex](https://github.com/NVIDIA/apex))
+ - Efficient distributed training(0.8x faster when using two 2080ti)
+ - Add a script to convert to caffe model(By [woodsgao/pytorch2caffe](https://github.com/woodsgao/pytorch2caffe))
 
 ## Installation
 
@@ -17,7 +19,7 @@ Implementation of some classification models with pytorch, including SENet, ResN
     cd pytorch_classification
     pip install -r requirements.txt
 
-## Usage
+## Tutorials
 
 ### Create custom data
 
@@ -38,17 +40,20 @@ Then execute `python3 split_dataset.py data/<custom>` . It splits the data into 
 
 ### Training
 
-    python3 train.py --data data/<custom>
+    python3 train.py data/<custom>
 
 ### Distributed Training
 
-Run the following command in all nodes.Every node will save your weights
-    python3 train.py --data data/<custom> -s <world-size> -r <rank> -i <tcp://master-server:port>
+    python3 -m torch.distributed.launch --nproc_per_node=<nproc> train.py data/<custom>
 
 ### Testing
 
-    python3 test.py --val-list /data/<custom>/valid.txt
+    python3 test.py /data/<custom>/val.json
 
 ### Inference
 
-    python3 inference.py --img-dir data/samples --img-size 224 --output_path outputs.csv --weights weights/best.pt
+    python3 inference.py data/samples
+
+### Export to caffe model
+
+    python3 export2caffe.py weights/best.pt --num-classes 21 --img-size 416
