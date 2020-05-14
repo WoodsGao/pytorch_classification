@@ -38,5 +38,7 @@ def run(data_dir, train_rate=0.7, shuffle=True):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('path', default='./voc')
-    args = parser.parse_args()
-    run(args.path)
+    parser.add_argument('-s', '--shuffle', action='store_true')
+    parser.add_argument('-t', '--train-ratio', type=float, default=0.7)
+    opt = parser.parse_args()
+    run(opt.path, opt.train_ratio, opt.shuffle)
