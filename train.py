@@ -8,7 +8,7 @@ import torch
 import torch.distributed as dist
 from torch.utils.data import DataLoader, DistributedSampler
 
-from models import ResNet18
+from models import MobileNetV2
 from pytorch_modules.utils import Fetcher, Trainer
 from utils.datasets import ClsDataset
 from utils.utils import compute_loss
@@ -64,7 +64,7 @@ def train(data_dir,
         )
         val_fetcher = Fetcher(val_loader, post_fetch_fn=val_data.post_fetch_fn)
 
-    model = ResNet18(num_classes=len(train_data.classes))
+    model = MobileNetV2(num_classes=len(train_data.classes))
 
     trainer = Trainer(model,
                       train_fetcher,

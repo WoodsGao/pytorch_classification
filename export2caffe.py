@@ -5,17 +5,17 @@ import os.path as osp
 import torch
 
 from pytorch2caffe import pytorch2caffe
-from models import ResNet18
+from models import MobileNetV2
 from pytorch_modules.utils import fuse
 
 
 def export2caffe(weights, num_classes, img_size):
-    model = ResNet18(num_classes)
+    model = MobileNetV2(num_classes)
     weights = torch.load(weights, map_location='cpu')
     model.load_state_dict(weights['model'])
     model.eval()
     fuse(model)
-    name = 'ResNet18'
+    name = 'MobileNetV2'
     dummy_input = torch.ones([1, 3, img_size[1], img_size[0]])
     pytorch2caffe.trans_net(model, dummy_input, name)
     pytorch2caffe.save_prototxt('{}.prototxt'.format(name))

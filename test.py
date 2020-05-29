@@ -5,7 +5,7 @@ import torch.distributed as dist
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from models import ResNet18
+from models import MobileNetV2
 from pytorch_modules.utils import Fetcher, device
 from utils.datasets import ClsDataset
 from utils.utils import compute_loss, compute_metrics, show_batch
@@ -79,7 +79,6 @@ if __name__ == "__main__":
     parser.add_argument('--rect', action='store_true')
     parser.add_argument('--img-size', type=str, default='224')
     parser.add_argument('-bs', '--batch-size', type=int, default=64)
-    parser.add_argument('-a', '--accumulate', type=int, default=1)
     parser.add_argument('--num-workers', type=int, default=4)
 
     opt = parser.parse_args()
@@ -102,7 +101,7 @@ if __name__ == "__main__":
         num_workers=opt.num_workers,
     )
     val_fetcher = Fetcher(val_loader, post_fetch_fn=val_data.post_fetch_fn)
-    model = ResNet18(len(val_data.classes))
+    model = MobileNetV2(len(val_data.classes))
     model = model.to(device)
     if opt.weights:
         state_dict = torch.load(opt.weights, map_location='cpu')
