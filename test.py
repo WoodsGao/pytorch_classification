@@ -77,7 +77,11 @@ if __name__ == "__main__":
     parser.add_argument('val', type=str)
     parser.add_argument('--weights', type=str, default='')
     parser.add_argument('--rect', action='store_true')
-    parser.add_argument('-s', '--img_size', type=int, nargs=2, default=[224, 224])
+    parser.add_argument('-s',
+                        '--img_size',
+                        type=int,
+                        nargs=2,
+                        default=[224, 224])
     parser.add_argument('-bs', '--batch-size', type=int, default=64)
     parser.add_argument('--num-workers', type=int, default=4)
 

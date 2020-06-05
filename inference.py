@@ -32,9 +32,14 @@ if __name__ == "__main__":
     parser.add_argument('imgs', type=str, default='data/samples')
     parser.add_argument('outputs', type=str, default='outputs.txt')
     parser.add_argument('--weights', type=str, default='weights/best.pt')
-    parser.add_argument('-s', '--img_size', type=int, nargs=2, default=[224, 224])
+    parser.add_argument('-s',
+                        '--img_size',
+                        type=int,
+                        nargs=2,
+                        default=[224, 224])
     parser.add_argument('-nc', '--num-classes', type=int, default=10)
     parser.add_argument('--rect', action='store_true')
     opt = parser.parse_args()
 
-    run(opt.imgs, opt.outputs, opt.weights, opt.img_size, opt.num_classes, opt.rect)
+    run(opt.imgs, opt.outputs, opt.weights, opt.img_size, opt.num_classes,
+        opt.rect)
