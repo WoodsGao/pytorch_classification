@@ -14,21 +14,9 @@ from utils.datasets import ClsDataset
 from utils.utils import compute_loss
 
 
-def train(data_dir,
-          epochs=100,
-          img_size=(224, 224),
-          batch_size=8,
-          accumulate=2,
-          lr=1e-3,
-          adam=False,
-          resume=False,
-          weights='',
-          num_workers=0,
-          multi_scale=False,
-          rect=False,
-          mixed_precision=False,
-          notest=False,
-          nosave=False):
+def train(data_dir, epochs, img_size, batch_size, accumulate, lr, adam, resume,
+          weights, num_workers, multi_scale, rect, mixed_precision, notest,
+          nosave):
     train_dir = osp.join(data_dir, 'train.txt')
     val_dir = osp.join(data_dir, 'valid.txt')
 
@@ -89,12 +77,15 @@ def train(data_dir,
             trainer.save(best)
 
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('data', type=str, default='data/voc')
     parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('-s', '--img_size', type=int, nargs=2, default=[224, 224])
+    parser.add_argument('-s',
+                        '--img_size',
+                        type=int,
+                        nargs=2,
+                        default=[224, 224])
     parser.add_argument('-bs', '--batch-size', type=int, default=64)
     parser.add_argument('-a', '--accumulate', type=int, default=1)
     parser.add_argument('--lr', type=float, default=1e-3)
