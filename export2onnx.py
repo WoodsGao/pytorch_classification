@@ -4,7 +4,6 @@ import os.path as osp
 
 import torch
 
-from pytorch2caffe import pytorch2caffe
 from models import MobileNetV2
 from pytorch_modules.utils import fuse
 
@@ -15,11 +14,8 @@ def export2caffe(weights, num_classes, img_size):
     model.load_state_dict(weights['model'])
     model.eval()
     fuse(model)
-    name = 'MobileNetV2'
     dummy_input = torch.ones([1, 3, img_size[1], img_size[0]])
-    pytorch2caffe.trans_net(model, dummy_input, name)
-    pytorch2caffe.save_prototxt('{}.prototxt'.format(name))
-    pytorch2caffe.save_caffemodel('{}.caffemodel'.format(name))
+    torch.onnx.export(model, dummy_input, 'MobileNetV2.onnx', input_names=['input'], output_names=['output'], opset_version=7)
 
 
 if __name__ == "__main__":

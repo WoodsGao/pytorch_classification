@@ -56,4 +56,4 @@ Then execute `python3 split_dataset.py data/<custom>` . It splits the data into 
 
 ### Export to caffe model
 
-    python3 export2caffe.py weights/best.pt --num-classes 21 --img-size 416
+    python3 export2caffe.py weights/best.pt -nc 21 -s 224 224

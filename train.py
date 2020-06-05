@@ -94,7 +94,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('data', type=str, default='data/voc')
     parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('--img-size', type=str, default='224')
+    parser.add_argument('-s', '--img_size', type=int, nargs=2, default=[224, 224])
     parser.add_argument('-bs', '--batch-size', type=int, default=64)
     parser.add_argument('-a', '--accumulate', type=int, default=1)
     parser.add_argument('--lr', type=float, default=1e-3)
@@ -127,16 +127,10 @@ if __name__ == "__main__":
     if opt.local_rank > 0:
         sys.stdout = open(os.devnull, 'w')
     print(opt)
-    img_size = opt.img_size.split(',')
-    assert len(img_size) in [1, 2]
-    if len(img_size) == 1:
-        img_size = [int(img_size[0])] * 2
-    else:
-        img_size = [int(x) for x in img_size]
 
     train(data_dir=opt.data,
           epochs=opt.epochs,
-          img_size=img_size,
+          img_size=opt.img_size,
           batch_size=opt.batch_size,
           accumulate=opt.accumulate,
           lr=opt.lr,
