@@ -1,17 +1,19 @@
+import argparse
 import os
 import os.path as osp
-import argparse
-from tqdm import tqdm
-import torch
-from models import ResNet18
-from pytorch_modules.utils import device, IMG_EXT
-from utils.inference import inference
+
 import cv2
+import torch
+from tqdm import tqdm
+
+from models import MobileNetV2
+from pytorch_modules.utils import IMG_EXT, device
+from utils.inference import inference
 
 
-def run(img_dir, outputs, weights, img_size, num_classes, rect):
+def run(img_dir, output_csv, weights, img_size, num_classes, rect):
     results = []
-    model = ResNet18(num_classes)
+    model = MobileNetV2(num_classes)
     state_dict = torch.load(weights, map_location='cpu')
     model.load_state_dict(state_dict['model'])
     model = model.to(device)
@@ -23,14 +25,14 @@ def run(img_dir, outputs, weights, img_size, num_classes, rect):
         pred = inference(model, img, img_size, rect=rect)
         idx = pred.argmax()
         results.append('%s %d' % (path, idx))
-    with open(outputs, 'w') as f:
+    with open(output_csv, 'w') as f:
         f.write('\n'.join(results))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('imgs', type=str, default='data/samples')
-    parser.add_argument('outputs', type=str, default='outputs.txt')
+    parser.add_argument('img_dir', type=str)
+    parser.add_argument('output_csv', type=str)
     parser.add_argument('--weights', type=str, default='weights/best.pt')
     parser.add_argument('-s',
                         '--img_size',
@@ -41,5 +43,5 @@ if __name__ == "__main__":
     parser.add_argument('--rect', action='store_true')
     opt = parser.parse_args()
 
-    run(opt.imgs, opt.outputs, opt.weights, opt.img_size, opt.num_classes,
+    run(opt.img_dir, opt.output_csv, opt.weights, opt.img_size, opt.num_classes,
         opt.rect)
