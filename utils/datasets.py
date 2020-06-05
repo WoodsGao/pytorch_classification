@@ -8,7 +8,6 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from imgaug import augmenters as iaa
-from imgaug.augmentables.polys import Polygon, PolygonsOnImage
 
 from pytorch_modules.utils import IMG_EXT
 
@@ -24,8 +23,8 @@ sometimes = lambda aug: iaa.Sometimes(0.5, aug)
 TRAIN_AUGS = iaa.Sequential(
     [
         # apply the following augmenters to most images
-        iaa.Fliplr(0.5),  # horizontally flip 50% of all images
-        iaa.Flipud(0.2),  # vertically flip 20% of all images
+        # iaa.Fliplr(0.5),  # horizontally flip 50% of all images
+        # iaa.Flipud(0.2),  # vertically flip 20% of all images
         # crop images by -5% to 10% of their height/width
         sometimes(
             iaa.CropAndPad(
@@ -132,9 +131,6 @@ class ClsDataset(torch.utils.data.Dataset):
                  rect=False):
         super(ClsDataset, self).__init__()
         self.path = path
-        if isinstance(img_size, int):
-            img_size = (img_size, img_size)
-        assert len(img_size) == 2
         self.img_size = img_size
         self.multi_scale = multi_scale
         self.rect = rect

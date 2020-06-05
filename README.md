@@ -48,7 +48,7 @@ Then execute `python3 split_dataset.py data/<custom>` . It splits the data into 
 
 ### Testing
 
-    python3 test.py /data/<custom>/val.json
+    python3 test.py /data/<custom>/val.json --weights weights.pth
 
 ### Inference
 
