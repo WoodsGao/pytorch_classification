@@ -19,7 +19,6 @@ def inference(model, img, img_size=(64, 64), rect=False):
                 'height': int(h * scale)
             }),
             ia.PadToFixedSize(*img_size,
-                              pad_cval=[123.675, 116.28, 103.53],
                               position='center')
         ])
     else:

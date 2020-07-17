@@ -169,7 +169,6 @@ class ClsDataset(torch.utils.data.Dataset):
                     'height': int(h * scale)
                 }),
                 iaa.PadToFixedSize(*self.img_size,
-                                   pad_cval=[123.675, 116.28, 103.53],
                                    position='center')
             ])
         else:
